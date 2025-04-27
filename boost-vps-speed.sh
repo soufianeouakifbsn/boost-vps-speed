@@ -1,95 +1,101 @@
 #!/bin/bash
-# Nuclear Tuning Script for UDP/VPN Monster Speed (ZIVPN/Hysteria) 🔥🚀
+# Ultra-Mega-Hyper Tuning Script for MAXIMUM UDP THROUGHPUT ⚡💥
 
-echo "💥 تفعيل وضع الحرب النووية للشبكة..."
+echo "🌀 تفعيل وضع الإرسال الصاروخي المتطرف..."
 
-# كتابة الإعدادات النووية لـ sysctl
+# ===== الإعدادات النووية لـ sysctl =====
 cat > /etc/sysctl.conf <<EOF
-# ===== إعدادات الذاكرة النووية =====
-net.core.rmem_default = 536870912
-net.core.rmem_max = 1073741824
-net.core.wmem_default = 536870912
-net.core.wmem_max = 1073741824
+# 🔥 إعدادات الذاكرة الكونية
+net.core.rmem_default = 2147483648
+net.core.rmem_max = 2147483648
+net.core.wmem_default = 2147483648
+net.core.wmem_max = 2147483648
 net.core.optmem_max = 268435456
 
-# ===== إعدادات UDP الصاروخية =====
-net.ipv4.udp_rmem_min = 16777216
-net.ipv4.udp_wmem_min = 16777216
-net.ipv4.udp_mem = 16777216 2268435456 2268435456
+# 💥 إعدادات UDP الخارقة
+net.ipv4.udp_rmem_min = 33554432
+net.ipv4.udp_wmem_min = 33554432
+net.ipv4.udp_mem = 33554432 33554432 33554432
 
-# ===== معالجة الحزم بسرعة الضوء =====
-net.core.netdev_max_backlog = 1000000
-net.core.netdev_budget = 60000
-net.core.netdev_budget_usecs = 8000
-net.core.busy_read = 100
-net.core.busy_poll = 100
-net.core.flow_limit_cpu_bitmap = f
+# ⚡ معالجة حزم بسرعة الضوء
+net.core.netdev_max_backlog = 2000000
+net.core.netdev_budget = 100000
+net.core.netdev_budget_usecs = 16000
+net.core.busy_read = 200
+net.core.busy_poll = 200
+net.core.rps_sock_flow_entries = 1310720
 
-# ===== إعدادات NIC المتطرفة =====
-net.core.rps_sock_flow_entries = 655360
-net.core.rps_flow_cnt = 327680
+# 🚀 تحسينات NIC المتطرفة
+net.core.dev_weight = 1024
+net.core.flow_limit_cpu_bitmap = ff
 
-# ===== إعدادات النظام المجنونة =====
-fs.file-max = 10000000
-fs.nr_open = 10000000
-kernel.pid_max = 4194303
+# 🌌 إعدادات النظام الأسطورية
+fs.file-max = 16777216
+fs.nr_open = 16777216
+kernel.pid_max = 4194304
+vm.min_free_kbytes = 1048576
 
-# ===== تحسينات الأجهزة المتقدمة =====
+# ⚡ تعطيل كل ما يعيق السرعة
 net.ipv4.tcp_timestamps = 0
 net.ipv4.tcp_sack = 0
 net.ipv4.tcp_dsack = 0
 net.ipv4.tcp_fack = 0
-net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_slow_start_after_idle = 0
 EOF
 
-# تطبيق الإعدادات النووية
 sysctl -p
 
-echo "☢️ تم تفعيل الإعدادات النووية!"
-
-# إعدادات IRQ القصوى
-echo "⚡ تهيئة IRQ Affinity بالقوة القصوى..."
+# ===== إعدادات IRQ الذرية =====
+echo "⚡ تهيئة IRQ Affinity بالقوة المطلقة..."
 for irq in /proc/irq/*/smp_affinity_list; do
-    echo "0-15" > "$irq" 2>/dev/null
+    echo "0-31" > "$irq" 2>/dev/null
 done
-echo 327680 > /proc/sys/net/core/rps_sock_flow_entries
 
-# إعدادات NIC المتطرفة
-echo "🚀 ضبط إعدادات NIC الهجومية..."
+# ===== إعدادات NIC النووية =====
+echo "💣 تفعيل وضع NIC الهجومي..."
 for dev in $(ls /sys/class/net/); do
-    ethtool -G $dev rx 8192 tx 8192 2>/dev/null
-    ethtool -K $dev tso on gso on gro on lro on tx-nocache-copy on 2>/dev/null
-    ethtool -C $dev rx-usecs 0 rx-frames 0 tx-usecs 0 tx-frames 0 2>/dev/null
+    ethtool -G $dev rx 32768 tx 32768 2>/dev/null    # RX/TX rings إلى أقصى قيمة
+    ethtool -K $Dev tso on gso on gro on lro on tx-nocache-copy on rx-udp-gro-forwarding on 2>/dev/null
+    ethtool -C $dev rx-usecs 0 tx-usecs 0 2>/dev/null  # تعطيل كل التأخيرات
+    ip link set $dev txqueuelen 100000 2>/dev/null     # زيادة طابور الإرسال
 done
 
-# إعدادات الأمان النووية
-echo "🔐 رفع حدود النظام إلى ما لا نهاية..."
-cat > /etc/security/limits.d/99-ultra.conf <<EOF
-* soft nofile 10000000
-* hard nofile 10000000
+# ===== حدود النظام الأسطورية =====
+cat > /etc/security/limits.d/99-hyper.conf <<EOF
+* soft nofile 16777216
+* hard nofile 16777216
 * soft memlock unlimited
 * hard memlock unlimited
 * soft stack  unlimited
 * hard stack  unlimited
-* soft nproc  1000000
-* hard nproc  1000000
 EOF
 
-# تحميل الوحدات النووية
-echo "💣 تحميل وحدات Kernel الهجومية..."
-modprobe sch_fq
-modprobe tcp_bbr
-modprobe udp_tunnel
+# ===== تحميل الوحدات الخارقة =====
+modprobe sch_mqprio    # Multi-queue Priority Qdisc
+modprobe uio_pci_generic  # User-space I/O
+modprobe ifb numifbs=16   # Intermediate Functional Blocks
 
-# إعادة تشغيل الخدمات
-echo "🔄 إعادة تشغيل خدمات الشبكة النووية..."
+# ===== إعدادات QoS المتطرفة =====
+tc qdisc add dev eth0 root mqprio \
+    num_tc 8 \
+    map 0 1 2 3 4 5 6 7 \
+    queues 1@0 1@1 1@2 1@3 1@4 1@5 1@6 1@7 \
+    hw 0
+
+# ===== إعادة تشغيل الخدمات النووية =====
 systemctl restart irqbalance.service
-systemctl restart systemd-sysctl.service
+systemctl restart NetworkManager.service
 
-echo "🔥☢️⚡ التهيئة النووية اكتملت! السيرفر جاهز لتحطيم القوانين الفيزيائية!"
-echo ""
-echo "ملاحظات مهمة:"
-echo "1. يتطلب NIC يدعم RSS وMulti-Queue"
-echo "2. يفضل استخدام خوادم بمعالجات Xeon/EPYC"
-echo "3. استخدم كابل شبكة بمواصفات 10G+"
-echo "4. تفعيل UDP GSO/GRO في تطبيق ZIVPN"
+echo "🚀🔥💥 التهيئة الخارقة اكتملت! السيرفر جاهز لإرسال البيانات بسرعة الضوء!"
+
+cat <<EOF
+
+╔══════════════════════════════════════════╗
+║          نصائح استخدام ذرية:            ║
+╠══════════════════════════════════════════╣
+║ 1. استخدم NIC بمواصفات 100Gbps+         ║
+║ 2. تفعيل RDMA إذا كان مدعومًا           ║
+║ 3. استخدام CPU من فئة Xeon/Threadripper ║
+║ 4. تأكد من دعم ISP للسرعات العالية       ║
+╚══════════════════════════════════════════╝
+EOF
