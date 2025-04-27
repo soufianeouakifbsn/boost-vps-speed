@@ -1,54 +1,65 @@
 #!/bin/bash
 
 # تحديث النظام
-sudo apt update -y
-sudo apt upgrade -y
+apt update -y
+apt upgrade -y
 
-# تثبيت WireGuard
-sudo apt install wireguard -y
+# تثبيت WireGuard والبرامج اللازمة
+apt install wireguard qrencode curl -y
 
-# توليد مفاتيح WireGuard
-wg genkey | tee privatekey | wg pubkey > publickey
-wg genkey | tee client_privatekey | wg pubkey > client_publickey
+# تحديد اسم المستخدم الحالي ومساره
+USER_HOME=$(eval echo ~${SUDO_USER})
 
-# تحديد عنوان IP للـ VPS
-VPS_IP=$(curl -s ifconfig.me)
+# إنشاء مجلد WireGuard إذا لم يكن موجود
+mkdir -p /etc/wireguard
 
-# إعداد ملف السيرفر WireGuard
+# توليد المفاتيح
+SERVER_PRIVATE_KEY=$(wg genkey)
+SERVER_PUBLIC_KEY=$(echo "$SERVER_PRIVATE_KEY" | wg pubkey)
+CLIENT_PRIVATE_KEY=$(wg genkey)
+CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
+
+# جلب IP الخاص بالسيرفر
+SERVER_IP=$(curl -s ifconfig.me)
+
+# إعداد ملف السيرفر
 cat <<EOL > /etc/wireguard/wg0.conf
 [Interface]
-PrivateKey = $(cat privatekey)
 Address = 10.66.66.1/24
+PrivateKey = $SERVER_PRIVATE_KEY
 ListenPort = 51820
-SaveConfig = true
 PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+SaveConfig = true
 
 [Peer]
-PublicKey = $(cat client_publickey)
+PublicKey = $CLIENT_PUBLIC_KEY
 AllowedIPs = 10.66.66.2/32
 EOL
 
-# تفعيل WireGuard
-sudo systemctl start wg-quick@wg0
-sudo systemctl enable wg-quick@wg0
-
-# إعداد اتصال العميل
-cat <<EOL > /home/ubuntu/phone.conf
+# إعداد ملف العميل (هاتفك)
+cat <<EOL > ${USER_HOME}/phone.conf
 [Interface]
-PrivateKey = $(cat client_privatekey)
+PrivateKey = $CLIENT_PRIVATE_KEY
 Address = 10.66.66.2/24
 DNS = 1.1.1.1
 
 [Peer]
-PublicKey = $(cat publickey)
-Endpoint = $VPS_IP:51820
+PublicKey = $SERVER_PUBLIC_KEY
+Endpoint = $SERVER_IP:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOL
 
-# توليد QR Code للاتصال عبر الهاتف
-sudo apt install qrencode -y
-qrencode -t ansiutf8 < /home/ubuntu/phone.conf
+# تفعيل الخدمة
+systemctl enable wg-quick@wg0
+systemctl start wg-quick@wg0
 
-echo "WireGuard تم تثبيته بنجاح! قم بفحص QR Code أعلى الشاشة لمسح الكود في تطبيق WireGuard على هاتفك."
+# توليد QR Code للملف
+qrencode -t ansiutf8 < ${USER_HOME}/phone.conf
+
+# عرض ملخص
+echo ""
+echo "✅ تم تثبيت WireGuard بنجاح!"
+echo "📂 ملف إعداد الاتصال موجود هنا: ${USER_HOME}/phone.conf"
+echo "📸 امسح QR Code أعلاه عبر تطبيق WireGuard على هاتفك."
