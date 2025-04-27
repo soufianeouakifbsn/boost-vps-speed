@@ -13,19 +13,14 @@ USER_HOME=$(eval echo ~$USER)
 # إنشاء مجلد WireGuard إذا لم يكن موجود
 mkdir -p /etc/wireguard
 
-# إدخال بيانات السيرفر يدوياً
-echo "أدخل المفتاح الخاص بالسيرفر:"
-read SERVER_PRIVATE_KEY
+# توليد المفاتيح
+SERVER_PRIVATE_KEY=$(wg genkey)
 SERVER_PUBLIC_KEY=$(echo "$SERVER_PRIVATE_KEY" | wg pubkey)
-
-# إدخال بيانات العميل يدوياً
-echo "أدخل المفتاح الخاص بالعميل:"
-read CLIENT_PRIVATE_KEY
+CLIENT_PRIVATE_KEY=$(wg genkey)
 CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
 
-# إدخال IP السيرفر يدوياً
-echo "أدخل عنوان الـ IP الخاص بالسيرفر (مثال: 192.168.1.1):"
-read SERVER_IP
+# جلب IP الخاص بالسيرفر
+SERVER_IP=$(curl -s ifconfig.me)
 
 # إعداد ملف السيرفر
 cat <<EOL > /etc/wireguard/wg0.conf
