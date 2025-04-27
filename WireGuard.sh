@@ -55,12 +55,11 @@ EOL
 systemctl enable wg-quick@wg0
 systemctl start wg-quick@wg0
 
-# توليد QR Code وحفظه كصورة
-qrencode -t png < ${USER_HOME}/phone.conf -o ${USER_HOME}/phone_qr.png
+# توليد QR Code وعرضه في الطرفية باستخدام الترميز utf8
+qrencode -t utf8 < ${USER_HOME}/phone.conf
 
-# عرض المسار إلى الصورة
+# عرض ملخص
 echo ""
 echo "✅ تم تثبيت WireGuard بنجاح!"
 echo "📂 ملف إعداد الاتصال موجود هنا: ${USER_HOME}/phone.conf"
-echo "📸 تم حفظ QR Code في الملف: ${USER_HOME}/phone_qr.png"
-echo "📲 امسح QR Code عبر تطبيق WireGuard على هاتفك."
+echo "📸 امسح QR Code أعلاه عبر تطبيق WireGuard على هاتفك."
