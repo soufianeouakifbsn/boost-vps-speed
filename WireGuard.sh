@@ -41,7 +41,7 @@ EOL
 cat <<EOL > ${USER_HOME}/phone.conf
 [Interface]
 PrivateKey = $CLIENT_PRIVATE_KEY
-Address = 10.66.66.2/24
+Address = 0.0.0.0/0
 DNS = 1.1.1.1
 
 [Peer]
