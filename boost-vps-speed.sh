@@ -1,92 +1,95 @@
 #!/bin/bash
-# سكربت لتقليل الاختناق وتحسين سرعة الإنترنت بشكل مكثف 🚀
+# Nuclear Tuning Script for UDP/VPN Monster Speed (ZIVPN/Hysteria) 🔥🚀
 
-echo "🔧 تطبيق إعدادات إضافية لتحسين سرعة الإنترنت..."
+echo "💥 تفعيل وضع الحرب النووية للشبكة..."
 
-# إعادة كتابة الإعدادات إلى sysctl.conf
+# كتابة الإعدادات النووية لـ sysctl
 cat > /etc/sysctl.conf <<EOF
-# ==== تحسين الشبكة ====
+# ===== إعدادات الذاكرة النووية =====
+net.core.rmem_default = 536870912
+net.core.rmem_max = 1073741824
+net.core.wmem_default = 536870912
+net.core.wmem_max = 1073741824
+net.core.optmem_max = 268435456
 
-# تخصيص ذاكرة TCP و UDP بشكل متقدم
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+# ===== إعدادات UDP الصاروخية =====
+net.ipv4.udp_rmem_min = 16777216
+net.ipv4.udp_wmem_min = 16777216
+net.ipv4.udp_mem = 16777216 2268435456 2268435456
 
-# تخصيص ذاكرة TCP أثناء النقل
-net.ipv4.tcp_rmem = 4096 87380 268435456
-net.ipv4.tcp_wmem = 4096 65536 268435456
+# ===== معالجة الحزم بسرعة الضوء =====
+net.core.netdev_max_backlog = 1000000
+net.core.netdev_budget = 60000
+net.core.netdev_budget_usecs = 8000
+net.core.busy_read = 100
+net.core.busy_poll = 100
+net.core.flow_limit_cpu_bitmap = f
 
-# تخصيص ذاكرة UDP
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+# ===== إعدادات NIC المتطرفة =====
+net.core.rps_sock_flow_entries = 655360
+net.core.rps_flow_cnt = 327680
 
-# تخصيص حجم قائمة الانتظار للـ TCP
-net.core.netdev_max_backlog = 250000
-net.core.somaxconn = 65536
+# ===== إعدادات النظام المجنونة =====
+fs.file-max = 10000000
+fs.nr_open = 10000000
+kernel.pid_max = 4194303
 
-# استخدام TCP Cubic لتحسين الأداء
-net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_no_metrics_save = 1
-net.ipv4.tcp_window_scaling = 1
-
-# تفعيل TCP Fast Open لتسريع الاتصال
-net.ipv4.tcp_fastopen = 3
-
-# تخصيص المجال المحلي للمنافذ
-net.ipv4.ip_local_port_range = 1024 65535
-
-# تقليل وقت الانتظار في TCP
-net.ipv4.tcp_fin_timeout = 10
-net.ipv4.tcp_tw_reuse = 1
-
-# تعطيل إعادة التوجيه في الشبكة
-net.ipv4.conf.all.accept_redirects = 0
-net.ipv4.conf.all.send_redirects = 0
-
-# تحسين الأداء في TCP
-net.ipv4.tcp_moderate_rcvbuf = 1
+# ===== تحسينات الأجهزة المتقدمة =====
 net.ipv4.tcp_timestamps = 0
-
-# تحسين استقرار الاتصال
-net.ipv4.ip_forward = 1
-
-# ==== تحسين النظام ====
-
-# زيادة حد الملفات المفتوحة
-fs.file-max = 2097152
-
-# تخصيص الحد الأقصى لعدد العمليات
-fs.inotify.max_user_watches = 524288
-
-# تخصيص الذاكرة الافتراضية
-vm.swappiness = 10
+net.ipv4.tcp_sack = 0
+net.ipv4.tcp_dsack = 0
+net.ipv4.tcp_fack = 0
+net.ipv4.tcp_low_latency = 1
 EOF
 
-# تطبيق التعديلات
+# تطبيق الإعدادات النووية
 sysctl -p
 
-echo "✅ تم تطبيق إعدادات sysctl بنجاح!"
+echo "☢️ تم تفعيل الإعدادات النووية!"
 
-# ضبط حدود الملفات المفتوحة (ulimit)
-echo "🔧 رفع حدود الملفات المفتوحة..."
+# إعدادات IRQ القصوى
+echo "⚡ تهيئة IRQ Affinity بالقوة القصوى..."
+for irq in /proc/irq/*/smp_affinity_list; do
+    echo "0-15" > "$irq" 2>/dev/null
+done
+echo 327680 > /proc/sys/net/core/rps_sock_flow_entries
 
-ulimit -n 1048576
+# إعدادات NIC المتطرفة
+echo "🚀 ضبط إعدادات NIC الهجومية..."
+for dev in $(ls /sys/class/net/); do
+    ethtool -G $dev rx 8192 tx 8192 2>/dev/null
+    ethtool -K $dev tso on gso on gro on lro on tx-nocache-copy on 2>/dev/null
+    ethtool -C $dev rx-usecs 0 rx-frames 0 tx-usecs 0 tx-frames 0 2>/dev/null
+done
 
-# إضافة للملفات الدائمة
-cat >> /etc/security/limits.conf <<EOF
-
-# ==== رفع حدود الملفات المفتوحة ====
-* soft nofile 1048576
-* hard nofile 1048576
+# إعدادات الأمان النووية
+echo "🔐 رفع حدود النظام إلى ما لا نهاية..."
+cat > /etc/security/limits.d/99-ultra.conf <<EOF
+* soft nofile 10000000
+* hard nofile 10000000
+* soft memlock unlimited
+* hard memlock unlimited
+* soft stack  unlimited
+* hard stack  unlimited
+* soft nproc  1000000
+* hard nproc  1000000
 EOF
 
-echo "✅ تم ضبط limits.conf بنجاح!"
+# تحميل الوحدات النووية
+echo "💣 تحميل وحدات Kernel الهجومية..."
+modprobe sch_fq
+modprobe tcp_bbr
+modprobe udp_tunnel
 
-# نصيحة
+# إعادة تشغيل الخدمات
+echo "🔄 إعادة تشغيل خدمات الشبكة النووية..."
+systemctl restart irqbalance.service
+systemctl restart systemd-sysctl.service
+
+echo "🔥☢️⚡ التهيئة النووية اكتملت! السيرفر جاهز لتحطيم القوانين الفيزيائية!"
 echo ""
-echo "🚀 كل شيء جاهز! من الأفضل أن تعيد تشغيل السيرفر لضمان تطبيق كل شيء بكفاءة."
-echo "لإعادة تشغيل السيرفر الآن اكتب: reboot"
+echo "ملاحظات مهمة:"
+echo "1. يتطلب NIC يدعم RSS وMulti-Queue"
+echo "2. يفضل استخدام خوادم بمعالجات Xeon/EPYC"
+echo "3. استخدم كابل شبكة بمواصفات 10G+"
+echo "4. تفعيل UDP GSO/GRO في تطبيق ZIVPN"
