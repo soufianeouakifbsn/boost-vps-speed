@@ -8,7 +8,7 @@ apt upgrade -y
 apt install wireguard qrencode curl -y
 
 # تحديد اسم المستخدم الحالي ومساره
-USER_HOME=$(eval echo ~${SUDO_USER})
+USER_HOME=$(eval echo ~$USER)
 
 # إنشاء مجلد WireGuard إذا لم يكن موجود
 mkdir -p /etc/wireguard
@@ -41,7 +41,7 @@ EOL
 cat <<EOL > ${USER_HOME}/phone.conf
 [Interface]
 PrivateKey = $CLIENT_PRIVATE_KEY
-Address = 0.0.0.0/0
+Address = 10.66.66.2/24  # هذا هو العنوان الذي سيتحصل عليه العميل
 DNS = 1.1.1.1
 
 [Peer]
