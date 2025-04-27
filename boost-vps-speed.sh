@@ -1,66 +1,92 @@
 #!/bin/bash
+# سكربت لتقليل الاختناق وتحسين سرعة الإنترنت بشكل مكثف 🚀
 
-# تحديث النظام
-echo "تحديث النظام..."
-apt update -y && apt upgrade -y
+echo "🔧 تطبيق إعدادات إضافية لتحسين سرعة الإنترنت..."
 
-# تثبيت الأدوات المطلوبة
-echo "تثبيت الأدوات المطلوبة..."
-apt install -y wireguard qrencode curl iptables
+# إعادة كتابة الإعدادات إلى sysctl.conf
+cat > /etc/sysctl.conf <<EOF
+# ==== تحسين الشبكة ====
 
-# توليد مفاتيح السيرفر
-echo "توليد مفاتيح السيرفر..."
-SERVER_PRIVATE_KEY=$(wg genkey)
-SERVER_PUBLIC_KEY=$(echo "$SERVER_PRIVATE_KEY" | wg pubkey)
-CLIENT_PRIVATE_KEY=$(wg genkey)
-CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
+# تخصيص ذاكرة TCP و UDP بشكل متقدم
+net.core.rmem_default = 33554432
+net.core.rmem_max = 268435456
+net.core.wmem_default = 33554432
+net.core.wmem_max = 268435456
 
-# جلب IP الخاص بالسيرفر
-SERVER_IP=$(curl -s ifconfig.me)
+# تخصيص ذاكرة TCP أثناء النقل
+net.ipv4.tcp_rmem = 4096 87380 268435456
+net.ipv4.tcp_wmem = 4096 65536 268435456
 
-# إنشاء ملف التكوين للسيرفر
-echo "إعداد ملف التكوين للسيرفر..."
-cat <<EOL > /etc/wireguard/wg0.conf
-[Interface]
-Address = 10.66.66.1/24
-PrivateKey = $SERVER_PRIVATE_KEY
-ListenPort = 51820
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-SaveConfig = true
+# تخصيص ذاكرة UDP
+net.core.rmem_default = 33554432
+net.core.rmem_max = 268435456
+net.core.wmem_default = 33554432
+net.core.wmem_max = 268435456
 
-[Peer]
-PublicKey = $CLIENT_PUBLIC_KEY
-AllowedIPs = 0.0.0.0/0
-EOL
+# تخصيص حجم قائمة الانتظار للـ TCP
+net.core.netdev_max_backlog = 250000
+net.core.somaxconn = 65536
 
-# إعداد ملف العميل
-USER_HOME=$(eval echo ~${SUDO_USER})
-echo "إعداد ملف التكوين للعميل..."
-cat <<EOL > ${USER_HOME}/phone.conf
-[Interface]
-PrivateKey = $CLIENT_PRIVATE_KEY
-Address = 10.66.66.2/24
-DNS = 1.1.1.1
+# استخدام TCP Cubic لتحسين الأداء
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_mtu_probing = 1
+net.ipv4.tcp_no_metrics_save = 1
+net.ipv4.tcp_window_scaling = 1
 
-[Peer]
-PublicKey = $SERVER_PUBLIC_KEY
-Endpoint = $SERVER_IP:51820
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25
-EOL
+# تفعيل TCP Fast Open لتسريع الاتصال
+net.ipv4.tcp_fastopen = 3
 
-# تفعيل وتشغيل خدمة WireGuard
-echo "تفعيل وتشغيل WireGuard..."
-systemctl enable wg-quick@wg0
-systemctl start wg-quick@wg0
+# تخصيص المجال المحلي للمنافذ
+net.ipv4.ip_local_port_range = 1024 65535
 
-# توليد QR Code للملف
-echo "توليد QR Code للملف..."
-qrencode -t ansiutf8 < ${USER_HOME}/phone.conf
+# تقليل وقت الانتظار في TCP
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_tw_reuse = 1
 
-# عرض ملخص
+# تعطيل إعادة التوجيه في الشبكة
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+
+# تحسين الأداء في TCP
+net.ipv4.tcp_moderate_rcvbuf = 1
+net.ipv4.tcp_timestamps = 0
+
+# تحسين استقرار الاتصال
+net.ipv4.ip_forward = 1
+
+# ==== تحسين النظام ====
+
+# زيادة حد الملفات المفتوحة
+fs.file-max = 2097152
+
+# تخصيص الحد الأقصى لعدد العمليات
+fs.inotify.max_user_watches = 524288
+
+# تخصيص الذاكرة الافتراضية
+vm.swappiness = 10
+EOF
+
+# تطبيق التعديلات
+sysctl -p
+
+echo "✅ تم تطبيق إعدادات sysctl بنجاح!"
+
+# ضبط حدود الملفات المفتوحة (ulimit)
+echo "🔧 رفع حدود الملفات المفتوحة..."
+
+ulimit -n 1048576
+
+# إضافة للملفات الدائمة
+cat >> /etc/security/limits.conf <<EOF
+
+# ==== رفع حدود الملفات المفتوحة ====
+* soft nofile 1048576
+* hard nofile 1048576
+EOF
+
+echo "✅ تم ضبط limits.conf بنجاح!"
+
+# نصيحة
 echo ""
-echo "✅ تم تثبيت WireGuard بنجاح!"
-echo "📂 ملف إعداد الاتصال موجود هنا: ${USER_HOME}/phone.conf"
-echo "📸 امسح QR Code أعلاه عبر تطبيق WireGuard على هاتفك."
+echo "🚀 كل شيء جاهز! من الأفضل أن تعيد تشغيل السيرفر لضمان تطبيق كل شيء بكفاءة."
+echo "لإعادة تشغيل السيرفر الآن اكتب: reboot"
