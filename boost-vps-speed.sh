@@ -1,31 +1,31 @@
 #!/bin/bash
-# سكربت لتحسين سرعة الأبلود والداونلود وزيادة السرعة بشكل متوازن 🚀
+# سكربت لتحسين سرعة الإنترنت مع تقليل الاختناق 🚀
 
-echo "🔧 تطبيق إعدادات متقدمة للشبكة..."
+echo "🔧 تطبيق إعدادات محسنة لتحسين الشبكة..."
 
-# كتابة الإعدادات إلى sysctl.conf
+# إعادة كتابة الإعدادات إلى sysctl.conf مع تعديلات جديدة
 cat > /etc/sysctl.conf <<EOF
 # ==== تحسين الشبكة ====
 
-# تخصيص ذاكرة TCP و UDP بشكل أكبر
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+# تخصيص ذاكرة TCP و UDP مع تقليل الحجم
+net.core.rmem_default = 16777216
+net.core.rmem_max = 67108864
+net.core.wmem_default = 16777216
+net.core.wmem_max = 67108864
 
 # تخصيص ذاكرة TCP أثناء النقل
-net.ipv4.tcp_rmem = 4096 87380 268435456
-net.ipv4.tcp_wmem = 4096 65536 268435456
+net.ipv4.tcp_rmem = 4096 87380 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
 
 # تخصيص ذاكرة UDP
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+net.core.rmem_default = 16777216
+net.core.rmem_max = 67108864
+net.core.wmem_default = 16777216
+net.core.wmem_max = 67108864
 
 # تخصيص حجم قائمة الانتظار للـ TCP
-net.core.netdev_max_backlog = 500000
-net.core.somaxconn = 65536
+net.core.netdev_max_backlog = 200000
+net.core.somaxconn = 32768
 
 # استخدام TCP Cubic لتحسين الأداء
 net.ipv4.tcp_congestion_control = cubic
@@ -40,7 +40,7 @@ net.ipv4.tcp_fastopen = 3
 net.ipv4.ip_local_port_range = 1024 65535
 
 # تقليل وقت الانتظار في TCP
-net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_fin_timeout = 15
 net.ipv4.tcp_tw_reuse = 1
 
 # تعطيل إعادة التوجيه في الشبكة
