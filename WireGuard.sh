@@ -34,7 +34,7 @@ SaveConfig = true
 
 [Peer]
 PublicKey = $CLIENT_PUBLIC_KEY
-AllowedIPs = 10.66.66.2/32
+AllowedIPs = 169.254.1.1/32
 EOL
 
 # إعداد ملف العميل (هاتفك)
