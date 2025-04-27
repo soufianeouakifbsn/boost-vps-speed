@@ -1,43 +1,37 @@
 #!/bin/bash
-# سكربت لتقليل الاختناق وتحسين سرعة الإنترنت بشكل مكثف 🚀
+# سكربت لتحسين استقرار الشبكة وتقليل تقلبات السرعة 🚀
 
-echo "🔧 تطبيق إعدادات إضافية لتحسين سرعة الإنترنت..."
+echo "🔧 تطبيق إعدادات استقرار الشبكة..."
 
 # إعادة كتابة الإعدادات إلى sysctl.conf
 cat > /etc/sysctl.conf <<EOF
-# ==== تحسين الشبكة ====
+# ==== تحسين استقرار الشبكة ====
 
-# تخصيص ذاكرة TCP و UDP بشكل متقدم
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+# تخصيص ذاكرة TCP و UDP بشكل مستقر
+net.core.rmem_default = 16777216
+net.core.rmem_max = 67108864
+net.core.wmem_default = 16777216
+net.core.wmem_max = 67108864
 
 # تخصيص ذاكرة TCP أثناء النقل
-net.ipv4.tcp_rmem = 4096 87380 268435456
-net.ipv4.tcp_wmem = 4096 65536 268435456
+net.ipv4.tcp_rmem = 4096 87380 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
 
 # تخصيص ذاكرة UDP
-net.core.rmem_default = 33554432
-net.core.rmem_max = 268435456
-net.core.wmem_default = 33554432
-net.core.wmem_max = 268435456
+net.core.rmem_default = 16777216
+net.core.rmem_max = 67108864
+net.core.wmem_default = 16777216
+net.core.wmem_max = 67108864
 
 # تخصيص حجم قائمة الانتظار للـ TCP
-net.core.netdev_max_backlog = 250000
+net.core.netdev_max_backlog = 200000
 net.core.somaxconn = 65536
 
-# استخدام TCP Cubic لتحسين الأداء
+# استخدام TCP BBR لتحسين الاستقرار
 net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_no_metrics_save = 1
 net.ipv4.tcp_window_scaling = 1
-
-# تفعيل TCP Fast Open لتسريع الاتصال
-net.ipv4.tcp_fastopen = 3
-
-# تخصيص المجال المحلي للمنافذ
-net.ipv4.ip_local_port_range = 1024 65535
 
 # تقليل وقت الانتظار في TCP
 net.ipv4.tcp_fin_timeout = 10
@@ -47,12 +41,13 @@ net.ipv4.tcp_tw_reuse = 1
 net.ipv4.conf.all.accept_redirects = 0
 net.ipv4.conf.all.send_redirects = 0
 
-# تحسين الأداء في TCP
+# تحسين استقرار الاتصال
+net.ipv4.ip_forward = 1
 net.ipv4.tcp_moderate_rcvbuf = 1
 net.ipv4.tcp_timestamps = 0
 
-# تحسين استقرار الاتصال
-net.ipv4.ip_forward = 1
+# تحسين أداء الشبكة
+net.ipv4.tcp_low_latency = 1
 
 # ==== تحسين النظام ====
 
