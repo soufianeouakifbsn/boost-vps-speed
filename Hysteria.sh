@@ -1,44 +1,148 @@
 #!/bin/bash
 
-echo "🔵 بدء تحديث/إعادة تثبيت Hysteria Server..."
+# تحميل السكربت مباشرة من GitHub وتنفيذه
+echo "تحميل السكربت من GitHub..."
 
-# تحديث النظام وتثبيت curl
-apt update -y
-apt install -y curl
+# تأكد من أنك تعمل كـ root أو استخدم sudo
+echo "جارٍ تحميل ملفات التكوين..."
 
-# إيقاف وحذف Hysteria القديم إن وجد
-systemctl stop hysteria-server.service 2>/dev/null
-systemctl disable hysteria-server.service 2>/dev/null
-rm -rf /etc/hysteria
-rm -f /etc/systemd/system/hysteria-server.service
-rm -f /usr/local/bin/hysteria
+# إعداد ملف تكوين الخادم
+echo "إنشاء ملف التكوين للخادم..."
+cat << EOF > /etc/hysteria/config.yaml
+listen: :443 # استماع على المنفذ 443
 
-echo "✅ تم حذف Hysteria القديم (إن وجد)."
+# استخدام شهادة موقعة ذاتيًا
+# tls:
+#   cert: /etc/hysteria/server.crt
+#   key: /etc/hysteria/server.key
 
-# تنزيل وتثبيت آخر نسخة من Hysteria
-bash <(curl -fsSL https://get.hy2.sh/)
-
-# إنشاء مجلد الإعداد
-mkdir -p /etc/hysteria
-
-# إنشاء ملف إعداد جديد
-cat > /etc/hysteria/config.yaml << EOF
-listen: :5678
 auth:
   type: password
-  password: lwalida
-up_mbps: 100
-down_mbps: 100
-obfs:
-  type: salamander
-  salamander:
-    password: lwalida
+  password: 123456 # كلمة المرور للمصادقة
+  
+masquerade:
+  type: proxy
+  proxy:
+    url: https://bing.com # عنوان التمويه
+    rewriteHost: true
 EOF
 
-# إعادة تحميل الخدمات وإعادة تشغيل Hysteria
-systemctl daemon-reload
-systemctl restart hysteria-server.service
-systemctl enable hysteria-server.service
+# إعداد ملف تكوين العميل
+echo "إنشاء ملف التكوين للعميل..."
+cat << EOF > /etc/hysteria/client_config.yaml
+server: ip:443
+auth: 123456
 
-echo "🎯 Hysteria Server تم تثبيته وتحديثه بنجاح!"
-systemctl status hysteria-server.service --no-pager
+bandwidth:
+  up: 20 mbps
+  down: 100 mbps
+  
+tls:
+  sni: a.com
+  insecure: false # استخدم true إذا كنت تستخدم شهادة موقعة ذاتيًا
+
+socks5:
+  listen: 127.0.0.1:1080
+http:
+  listen: 127.0.0.1:8080
+EOF
+
+# إعداد ملف تكوين sing-box
+echo "إنشاء ملف التكوين لـ sing-box..."
+cat << EOF > /etc/sing-box/config.json
+{
+  "dns": {
+    "servers": [
+      {
+        "tag": "cf",
+        "address": "https://1.1.1.1/dns-query"
+      },
+      {
+        "tag": "local",
+        "address": "223.5.5.5",
+        "detour": "direct"
+      },
+      {
+        "tag": "block",
+        "address": "rcode://success"
+      }
+    ],
+    "rules": [
+      {
+        "geosite": "category-ads-all",
+        "server": "block",
+        "disable_cache": true
+      },
+      {
+        "outbound": "any",
+        "server": "local"
+      },
+      {
+        "geosite": "cn",
+        "server": "local"
+      }
+    ],
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "inet4_address": "172.19.0.1/30",
+      "auto_route": true,
+      "strict_route": false,
+      "sniff": true
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "hysteria2",
+      "tag": "proxy",
+      "server": "ip",
+      "server_port": 443,
+      "up_mbps": 20,
+      "down_mbps": 100,
+      "password": "123456",
+      "tls": {
+        "enabled": true,
+        "server_name": "a.com",
+        "insecure": false
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "protocol": "dns",
+        "outbound": "dns-out"
+      },
+      {
+        "geosite": "cn",
+        "geoip": [
+          "private",
+          "cn"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "geosite": "category-ads-all",
+        "outbound": "block"
+      }
+    ],
+    "auto_detect_interface": true
+  }
+}
+EOF
+
+echo "تم إنشاء ملفات التكوين بنجاح."
