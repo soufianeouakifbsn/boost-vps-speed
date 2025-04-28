@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "🚀 ضبط إعدادات الشبكة لتقليل التأخير وتحقيق استجابة فائقة السرعة! ⚡"
+echo "🚀 ضبط إعدادات الشبكة لتقليل التأخير وتحقيق استجابة فائقة السرعة عبر UDP! ⚡"
 
 # تحسين إدارة الحزم عبر الشبكة
 cat > /etc/sysctl.conf <<EOF
@@ -58,6 +58,19 @@ sysctl -w net.core.netdev_budget_usecs=50000
 # تحسين استخدام موارد المعالج عبر `IRQ Balance`
 sysctl -w kernel.numa_balancing=1
 sysctl -w kernel.numa_balancing_scan_delay_ms=250
+
+# تحسين إعدادات الـ VPN لزيادة سرعة واستقرار ZIVPN
+echo "🔥 تحسين إعدادات الـ VPS لتسريع VPN وتقليل التأخير!"
+sysctl -w net.ipv4.udp_rmem_max=2147483648
+sysctl -w net.ipv4.udp_wmem_max=2147483648
+sysctl -w net.ipv4.tcp_fastopen=3
+
+# ضبط `QoS` لضمان استقرار سرعة الـ UDP
+echo "🚀 ضبط QoS لتقليل ازدحام الشبكة!"
+tc qdisc add dev eth0 root handle 1: htb default 10
+tc class add dev eth0 parent 1: classid 1:1 htb rate 1000mbit ceil 1000mbit
+tc class add dev eth0 parent 1: classid 1:10 htb rate 500mbit ceil 1000mbit
+tc qdisc add dev eth0 parent 1:10 handle 10: sfq perturb 10
 
 # ضبط حدود الملفات المفتوحة
 ulimit -n 1073741824
