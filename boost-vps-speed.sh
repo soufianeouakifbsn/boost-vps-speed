@@ -32,7 +32,7 @@ ethtool -C $IFACE rx-usecs 0 tx-usecs 0
 ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
 ethtool -A $IFACE rx off tx off
 ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
-ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
+ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم!
 
 # ضبط MTU للحصول على تدفق ضخم للحزم
 echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
@@ -42,22 +42,11 @@ ifconfig $IFACE mtu 9000
 echo "🔥 رفع سرعة الرفع عبر UDP إلى الحد الأقصى!"
 ethtool -G $IFACE tx 2097152  # رفع المخزن المؤقت للإرسال
 
-# تفعيل SQM لتحسين توزيع الحزم ومنع الازدحام
-echo "💥 تحسين إدارة الحزم عبر SQM!"
-tc qdisc add dev eth0 root cake bandwidth 10000mbit
-
 # رفع عدد الطوابير لمعالجة الحزم بسرعة أكبر
+echo "⚡ رفع عدد الطوابير لمعالجة الحزم بسرعة أكبر!"
 sysctl -w net.core.dev_weight=1024
 sysctl -w net.core.netdev_budget=100000
 sysctl -w net.core.netdev_budget_usecs=20000
-
-# تعزيز الطاقة القصوى للمعالج عبر IRQ Balance
-sysctl -w kernel.numa_balancing=1
-sysctl -w kernel.numa_balancing_scan_delay_ms=500
-
-# تفعيل Load Balancing عبر الشبكة لمنع الازدحام
-sysctl -w net.ipv4.fib_multipath_hash_policy=1
-sysctl -w net.ipv4.route_min_pmtu=1000
 
 # ضبط حدود الملفات المفتوحة
 ulimit -n 536870912
