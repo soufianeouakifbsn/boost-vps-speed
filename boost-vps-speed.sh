@@ -1,20 +1,21 @@
 #!/bin/bash
-echo "🚀 تعزيز إعدادات الشبكة باستخدام HyStart++ لتحقيق أقصى سرعة واستقرار! ⚡"
+echo "🚀 تعزيز إعدادات الشبكة باستخدام TCP Vegas لتحقيق استجابة مثالية وسرعة مستقرة! ⚡"
 
-# تمكين HyStart++ لتسريع بدء الاتصال وتقليل الازدحام
-echo "🔥 تفعيل HyStart++ للحصول على استجابة أسرع!"
+# تمكين TCP Vegas كخوارزمية التحكم في الازدحام
+echo "🔥 تفعيل TCP Vegas لتحسين استجابة الشبكة!"
 cat > /etc/sysctl.conf <<EOF
-net.ipv4.tcp_hystart_allow_burst = 1
-net.ipv4.tcp_hystart_detect = 1
-net.ipv4.tcp_hystart_low_window = 16
-net.ipv4.tcp_hystart_plus = 1
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = vegas
 
 # تحسين حركة المرور عبر TCP/UDP
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_nodelay = 1
+
+# ضبط إعدادات زمن الاستجابة في Vegas
+net.ipv4.tcp_vegas_alpha = 2
+net.ipv4.tcp_vegas_beta = 6
+net.ipv4.tcp_vegas_gamma = 1
 EOF
 
 sysctl -p
@@ -64,5 +65,5 @@ cat >> /etc/security/limits.conf <<EOF
 * hard nofile 2147483648
 EOF
 
-echo "✅ تم تطبيق جميع التحسينات! 🚀 الشبكة الآن تعمل بأقصى سرعة باستخدام HyStart++!"
+echo "✅ تم تطبيق جميع التحسينات! 🚀 الشبكة الآن تعمل بأقصى سرعة باستخدام TCP Vegas!"
 echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
