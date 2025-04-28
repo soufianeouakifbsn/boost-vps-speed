@@ -20,6 +20,16 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_mtu_probing = 2
 net.ipv4.tcp_ecn = 1
 
+# تفعيل FQ-CoDel لتقليل زمن الانتظار هذه التقنية تقلل تأخير الشبكة وتحسن استجابة الاتصالات:
+sysctl -w net.core.default_qdisc=fq_codel
+
+#زيادة حجم مخزن UDP Buffer لمنع فقدان الحزم
+sysctl -w net.ipv4.udp_rmem_max=2147483648
+sysctl -w net.ipv4.udp_wmem_max=2147483648
+
+#ضبط IRQ Balance لتوزيع حمل المعالجة إذا كان السيرفر يعمل على معالج متعدد الأنوية، فهذا يعزز الأداء:
+sysctl -w kernel.numa_balancing=1
+
 # تحسين استجابة الشبكة عبر ضبط TCP/UDP
 net.ipv4.tcp_timestamps = 0
 net.ipv4.tcp_slow_start_after_idle = 0
