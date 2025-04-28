@@ -1,21 +1,11 @@
 #!/bin/bash
-echo "🚀 معالجة اختناق الشبكة وضبط TCP Vegas مع HyStart++ لتحقيق أقصى استقرار وسرعة! ⚡"
+echo "🚀 تحسين الشبكة باستخدام BBR v2 لتحقيق أقصى سرعة واستقرار! ⚡"
 
-# تحسين Vegas ودمج HyStart++ لتسريع الاستجابة
-echo "🔥 ضبط Vegas مع HyStart++ لتحقيق اتصال أسرع وأكثر استقرارًا!"
+# تمكين BBR v2 كخوارزمية التحكم في الازدحام
+echo "🔥 ضبط BBR v2 لتحسين تدفق البيانات!"
 cat > /etc/sysctl.conf <<EOF
-net.ipv4.tcp_congestion_control = vegas
-
-# ضبط Vegas لتحسين أداء الشبكة تحت الضغط
-net.ipv4.tcp_vegas_alpha = 1
-net.ipv4.tcp_vegas_beta = 2
-net.ipv4.tcp_vegas_gamma = 0
-
-# تمكين HyStart++ لتقليل تأخير بدء الاتصال
-net.ipv4.tcp_hystart_allow_burst = 1
-net.ipv4.tcp_hystart_detect = 1
-net.ipv4.tcp_hystart_low_window = 16
-net.ipv4.tcp_hystart_plus = 1
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr2
 
 # تحسين حركة المرور عبر TCP/UDP
 net.ipv4.tcp_mtu_probing = 1
@@ -29,7 +19,7 @@ EOF
 
 sysctl -p
 
-# تعزيز حجم المخزن المؤقت لمنع فقدان البيانات
+# تحسين المخزن المؤقت لمنع فقدان الحزم
 echo "📡 ضبط Buffer Adaptation لتحقيق تدفق سلس!"
 sysctl -w net.ipv4.udp_mem=33554432 268435456 549755813888
 sysctl -w net.ipv4.udp_rmem_max=17179869184
