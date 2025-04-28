@@ -1,75 +1,81 @@
 #!/bin/bash
-echo "🚀 تعزيز إعدادات الشبكة باستخدام BBR v2 لتحقيق أقصى سرعة واستقرار! ⚡"
+echo "🚀 تعزيز إعدادات الشبكة لتحقيق سرعة قصوى في التحميل والرفع عبر UDP! ⚡"
 
-# تمكين BBR v2 كخوارزمية التحكم في الازدحام
-echo "🔥 تفعيل BBR v2 لتسريع تدفق البيانات!"
+# تحسين إدارة الحزم عبر الشبكة
 cat > /etc/sysctl.conf <<EOF
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr2
+net.core.rps_sock_flow_entries = 4194304
+net.core.netdev_max_backlog = 160000000
 
-# تعزيز أداء الحزم عبر UDP
-net.core.rps_sock_flow_entries = 16777216
-net.core.netdev_max_backlog = 640000000
-net.core.optmem_max = 34359738368
-net.ipv4.udp_mem = 16777216 134217728 274877906944
-net.ipv4.udp_rmem_min = 16777216
-net.ipv4.udp_wmem_min = 16777216
-net.ipv4.udp_rmem_max = 8589934592
-net.ipv4.udp_wmem_max = 17179869184
+# تعزيز تدفق البيانات عبر UDP (تحميل ورفع بسرعة خارقة)
+net.core.optmem_max = 17179869184
+net.ipv4.udp_mem = 4194304 33554432 68719476736
+net.ipv4.udp_rmem_min = 4194304
+net.ipv4.udp_wmem_min = 4194304
+net.ipv4.udp_rmem_max = 1073741824
+net.ipv4.udp_wmem_max = 2147483648
 
-# تحسين استجابة الشبكة
+# تحسين إدارة حركة المرور عبر الشبكة
+net.core.default_qdisc = fq_codel  # تحسين الثبات عبر خوارزمية fq_codel
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_mtu_probing = 2
+net.ipv4.tcp_ecn = 1
+
+#تمكين fq_codel على VPS لتقليل التأخير
+sysctl -w net.core.default_qdisc=fq_codel
+sysctl -w net.core.optmem_max=17179869184
+
+
+# تحسين استجابة الشبكة عبر ضبط TCP/UDP
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_fastopen = 3
-net.ipv4.tcp_nodelay = 1
-net.ipv4.tcp_tw_reuse = 1
 EOF
 
 sysctl -p
 
 # ضبط إعدادات بطاقة الشبكة
-echo "🔧 ضبط بطاقة الشبكة للحصول على أقصى أداء!"
+echo "🔧 ضبط بطاقة الشبكة لتحقيق أقصى سرعة في التحميل والرفع!"
 IFACE="eth0"
-ethtool -G $IFACE rx 2097152 tx 2097152
+ethtool -G $IFACE rx 1048576 tx 1048576
 ethtool -C $IFACE adaptive-rx off adaptive-tx off
 ethtool -C $IFACE rx-usecs 0 tx-usecs 0
 ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
 ethtool -A $IFACE rx off tx off
-ethtool -s $IFACE speed 50000 duplex full autoneg off  # ضبط السرعة إلى 50Gbps!
-ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم!
+ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
+ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
 
 # ضبط MTU للحصول على تدفق ضخم للحزم
-echo "📡 ضبط MTU إلى 9000!"
+echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
 ifconfig $IFACE mtu 9000
+
+# تعزيز سرعة الرفع عبر UDP
+echo "🔥 رفع سرعة الرفع عبر UDP إلى الحد الأقصى!"
+ethtool -G $IFACE tx 2097152  # رفع المخزن المؤقت للإرسال
+
+# ضبط استقرار اتصال الشبكة
+echo "🔥 تحسين استقرار الشبكة عبر ضبط CPU Affinity!"
+sysctl -w net.core.somaxconn=65535
+sysctl -w net.core.netdev_max_backlog=500000
+
+# تحسين استجابة المعالج لمعالجة الحزم
+sysctl -w kernel.numa_balancing=1
+sysctl -w kernel.numa_balancing_scan_delay_ms=500
+
+# ضبط اتصال الـ MTU بشكل ديناميكي
 sysctl -w net.ipv4.route_min_pmtu=1000
 sysctl -w net.ipv4.tcp_mtu_probing=1
 
-# تحسين معالجة الحزم عبر `Multi-Queue Processing`
-echo "⚡ تحسين معالجة الحزم لتقليل زمن الاستجابة!"
-sysctl -w net.core.dev_weight=4096
-sysctl -w net.core.netdev_budget=400000
-sysctl -w net.core.netdev_budget_usecs=100000
-
-# ضبط QoS لضمان تدفق سلس عبر UDP
-echo "🔥 ضبط QoS لتحسين تدفق البيانات!"
-tc qdisc add dev eth0 root handle 1: htb default 10
-tc class add dev eth0 parent 1: classid 1:1 htb rate 5000mbit ceil 5000mbit
-tc class add dev eth0 parent 1: classid 1:10 htb rate 2500mbit ceil 5000mbit
-tc qdisc add dev eth0 parent 1:10 handle 10: sfq perturb 10
-
-# تحسين سرعة رفع البيانات عبر UDP
-echo "🔥 تعزيز سرعة الرفع عبر UDP بأقصى حد!"
-sysctl -w net.ipv4.udp_wmem_max=1717986918499
-sysctl -w net.ipv4.udp_wmem_min=1677721699
-ethtool -G $IFACE tx 8388608
-ifconfig $IFACE txqueuelen 200000
+#تمكين TCP_FASTOPEN لتسريع الاتصال
+sysctl -w net.ipv4.tcp_fastopen=3
 
 # ضبط حدود الملفات المفتوحة
-ulimit -n 2147483648
+ulimit -n 536870912
 
 # تعديل الملفات الدائمة
 cat >> /etc/security/limits.conf <<EOF
-* soft nofile 2147483648
-* hard nofile 2147483648
+* soft nofile 536870912
+* hard nofile 536870912
 EOF
 
-echo "✅ تم تطبيق جميع التحسينات! 🚀 الشبكة الآن تعمل بأقصى سرعة عبر BBR v2!"
+echo "✅ الشبكة الآن جاهزة لنقل البيانات بأقصى سرعة تحميل وأقصى سرعة رفع عبر UDP!"
 echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
