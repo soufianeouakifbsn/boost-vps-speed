@@ -3,7 +3,8 @@ echo "🚀 ضبط إعدادات الشبكة لتقليل التأخير وتح
 
 # تحسين إدارة الحزم عبر الشبكة
 cat > /etc/sysctl.conf <<EOF
-net.core.rps_sock_flow_entries = 8388608
+net.core.rps_sock_flow_entries = 16777216
+net.core.rfs_memory_limit = 67108864
 net.core.netdev_max_backlog = 320000000
 
 # تعزيز تدفق البيانات عبر UDP
@@ -21,6 +22,8 @@ net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_ecn = 1
 net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_nodelay = 1
+net.ipv4.tcp_tw_reuse = 1
 EOF
 
 sysctl -p
