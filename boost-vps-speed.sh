@@ -12,10 +12,10 @@ net.core.rps_sock_flow_entries = 16777216
 net.core.netdev_max_backlog = 640000000
 net.core.optmem_max = 34359738368
 net.ipv4.udp_mem = 16777216 134217728 274877906944
-net.ipv4.udp_rmem_min = 16777216
-net.ipv4.udp_wmem_min = 16777216
-net.ipv4.udp_rmem_max = 8589934592
-net.ipv4.udp_wmem_max = 17179869184
+net.ipv4.udp_rmem_min = 1677721699999
+net.ipv4.udp_wmem_min = 1677721699999
+net.ipv4.udp_rmem_max = 858993459299999
+net.ipv4.udp_wmem_max = 1717986918499999
 
 # تحسين استجابة الشبكة
 net.ipv4.tcp_fastopen = 3
