@@ -22,6 +22,8 @@ net.ipv4.tcp_ecn = 1
 
 #تمكين fq_codel على VPS لتقليل التأخير
 sysctl -w net.core.default_qdisc=fq_codel
+sysctl -w net.core.optmem_max=17179869184
+
 
 # تحسين استجابة الشبكة عبر ضبط TCP/UDP
 net.ipv4.tcp_timestamps = 0
