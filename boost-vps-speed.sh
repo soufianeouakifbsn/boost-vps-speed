@@ -12,10 +12,10 @@ net.core.rps_sock_flow_entries = 16777216
 net.core.netdev_max_backlog = 640000000
 net.core.optmem_max = 34359738368
 net.ipv4.udp_mem = 16777216 134217728 274877906944
-net.ipv4.udp_rmem_min = 1677721699999
-net.ipv4.udp_wmem_min = 1677721699999
-net.ipv4.udp_rmem_max = 858993459299999
-net.ipv4.udp_wmem_max = 1717986918499999
+net.ipv4.udp_rmem_min = 16777216
+net.ipv4.udp_wmem_min = 16777216
+net.ipv4.udp_rmem_max = 8589934592
+net.ipv4.udp_wmem_max = 17179869184
 
 # تحسين استجابة الشبكة
 net.ipv4.tcp_fastopen = 3
@@ -57,8 +57,8 @@ tc qdisc add dev eth0 parent 1:10 handle 10: sfq perturb 10
 
 # تحسين سرعة رفع البيانات عبر UDP
 echo "🔥 تعزيز سرعة الرفع عبر UDP بأقصى حد!"
-sysctl -w net.ipv4.udp_wmem_max=17179869184
-sysctl -w net.ipv4.udp_wmem_min=16777216
+sysctl -w net.ipv4.udp_wmem_max=1717986918499
+sysctl -w net.ipv4.udp_wmem_min=1677721699
 ethtool -G $IFACE tx 8388608
 ifconfig $IFACE txqueuelen 200000
 
