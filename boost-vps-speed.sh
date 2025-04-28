@@ -32,7 +32,7 @@ ethtool -C $IFACE rx-usecs 0 tx-usecs 0
 ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
 ethtool -A $IFACE rx off tx off
 ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
-ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
+ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم!
 
 # ضبط MTU للحصول على تدفق ضخم للحزم
 echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
