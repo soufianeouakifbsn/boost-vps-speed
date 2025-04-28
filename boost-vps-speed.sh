@@ -1,72 +1,54 @@
 #!/bin/bash
+echo "🚀 تحسين أداء TCP Vegas لتوفير أقصى سرعة واستقرار! ⚡"
 
-# 🚀 سكربت متطور يجمع بين مزايا TCP CUBIC وسرعة UDP لتحقيق أفضل استقرار وسرعة!
-
-echo "🚀 بدء تحسين إعدادات الشبكة لتحقيق أقصى أداء واستقرار! ⚡"
-
-# اختيار CUBIC كخوارزمية التحكم بالازدحام + تحسين خصائص TCP/UDP
+# ضبط Vegas مع تحسينات لمنع الاختناق
+echo "🔥 ضبط TCP Vegas ليعمل بكفاءة أعلى!"
 cat > /etc/sysctl.conf <<EOF
-# استخدام CUBIC لخوارزمية الازدحام الافتراضية
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = cubic
+net.ipv4.tcp_congestion_control = vegas
 
-# تحسين UDP
-net.core.rps_sock_flow_entries = 32768
-net.core.netdev_max_backlog = 1000000
-net.core.optmem_max = 65536
-net.ipv4.udp_mem = 4096 87380 6291456
-net.ipv4.udp_rmem_min = 4096
-net.ipv4.udp_wmem_min = 4096
-net.ipv4.udp_rmem_max = 134217728
-net.ipv4.udp_wmem_max = 134217728
+# تحسين Vegas لمنع التقطعات أثناء الضغط العالي
+net.ipv4.tcp_vegas_alpha = 2
+net.ipv4.tcp_vegas_beta = 4
+net.ipv4.tcp_vegas_gamma = 1
 
-# تحسين TCP
+# تمكين HyStart++ لمنع أي تراجع مفاجئ عند بدء الاتصال
+net.ipv4.tcp_hystart_allow_burst = 1
+net.ipv4.tcp_hystart_detect = 1
+net.ipv4.tcp_hystart_low_window = 16
+net.ipv4.tcp_hystart_plus = 1
+
+# تحسين حركة المرور عبر TCP/UDP
+net.ipv4.tcp_mtu_probing = 1
 net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_nodelay = 1
-net.ipv4.tcp_low_latency = 1
-net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_slow_start_after_idle = 0
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_syncookies = 1
 EOF
 
-# تطبيق التعديلات
 sysctl -p
 
-# ضبط إعدادات كارت الشبكة
-echo "🔧 ضبط إعدادات بطاقة الشبكة!"
+# تحسين المخزن المؤقت لمنع أي فقدان في الحزم
+echo "📡 ضبط Buffer لمنع التقطع المفاجئ!"
+sysctl -w net.ipv4.udp_rmem_max=8589934592
+sysctl -w net.ipv4.udp_wmem_max=17179869184
+
+# تحسين توزيع الحمل عبر IRQ Balancing
+sysctl -w kernel.numa_balancing=1
+sysctl -w kernel.numa_balancing_scan_delay_ms=100
+
+# تحسين توزيع الحمل عبر QoS
+echo "🔥 ضبط QoS لتسهيل تدفق البيانات!"
+tc qdisc replace dev eth0 root fq_codel quantum 5000
+
+# ضبط إعدادات بطاقة الشبكة لتحقيق أقصى أداء
+echo "🔧 ضبط بطاقة الشبكة لمنع تقلبات الاتصال!"
 IFACE="eth0"
-ethtool -G $IFACE rx 4096 tx 4096
+ethtool -G $IFACE rx 2097152 tx 2097152
 ethtool -C $IFACE adaptive-rx off adaptive-tx off
-ethtool -C $IFACE rx-usecs 0 tx-usecs 0
-ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off
 ethtool -s $IFACE speed 50000 duplex full autoneg off
-ethtool -K $IFACE xdp on
+ethtool -K $IFACE xdp on  # تفعيل XDP لتحسين معالجة الحزم!
 
-# تحسين الـ MTU
-echo "📡 تعيين MTU إلى 9000!"
-ifconfig $IFACE mtu 9000
-sysctl -w net.ipv4.route_min_pmtu=1000
-sysctl -w net.ipv4.tcp_mtu_probing=1
+# ضبط `txqueuelen` لمنع الاختناق المفاجئ
+echo "⚡ ضبط txqueuelen لجعل الاتصال ثابتًا تمامًا!"
+ifconfig eth0 txqueuelen 750000
 
-# تحسين الـ QoS باستخدام FQ + HTB
-echo "🔥 تحسين تدفق البيانات باستخدام FQ و HTB!"
-tc qdisc replace dev $IFACE root handle 1: htb default 10
-tc class add dev $IFACE parent 1: classid 1:1 htb rate 5000mbit ceil 5000mbit
-tc class add dev $IFACE parent 1: classid 1:10 htb rate 2500mbit ceil 5000mbit
-tc qdisc add dev $IFACE parent 1:10 handle 10: fq
-
-# ضبط txqueuelen لمزيد من الثبات
-echo "⚡ تعيين txqueuelen لمنع الاختناق!"
-ifconfig $IFACE txqueuelen 200000
-
-# ضبط حدود الملفات المفتوحة
-echo "📈 رفع حدود الملفات المفتوحة!"
-ulimit -n 1048576
-cat >> /etc/security/limits.conf <<EOF
-* soft nofile 1048576
-* hard nofile 1048576
-EOF
-
-echo "✅ تم تطبيق كل التحسينات! 🚀 الشبكة الآن جاهزة للأداء العالي! "
-echo "📢 ملاحظة: يُفضل إعادة تشغيل السيرفر لضمان تحميل كل الإعدادات بشكل كامل."
+echo "✅ تم تطبيق التحسينات! 🚀 الاتصال الآن يعمل بسرعة واستقرار مذهلين!"
+echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
