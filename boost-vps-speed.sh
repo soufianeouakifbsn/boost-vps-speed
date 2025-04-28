@@ -1,42 +1,60 @@
 #!/bin/bash
-echo "🚀 معالجة مشكلة اختناق الشبكة وضبط TCP Vegas لتحقيق أقصى استقرار! ⚡"
+echo "🚀 تحسين الشبكة: مزيج من استقرار Cubic ودقة Vegas لتحقيق أفضل أداء! ⚡"
 
-# تحسين Vegas لتقليل الاختناق
-echo "🔥 ضبط Vegas لجعل الاستجابة أكثر استقرارًا!"
+# تفعيل Cubic كخوارزمية رئيسية
+echo "🔥 تفعيل CUBIC TCP لضمان تدفق بيانات سلس!"
 cat > /etc/sysctl.conf <<EOF
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = cubic
+
+# تحسين استجابة الشبكة
 net.ipv4.tcp_vegas_alpha = 1
 net.ipv4.tcp_vegas_beta = 3
 net.ipv4.tcp_vegas_gamma = 0
-net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_nodelay = 1
+net.ipv4.tcp_tw_reuse = 1
+
+# تعزيز UDP Performance
+net.core.rps_sock_flow_entries = 32768
+net.core.netdev_max_backlog = 500000
+net.core.optmem_max = 67108864
+net.ipv4.udp_mem = 65536 131072 262144
+net.ipv4.udp_rmem_min = 4096
+net.ipv4.udp_wmem_min = 4096
+net.ipv4.udp_rmem_max = 67108864
+net.ipv4.udp_wmem_max = 67108864
 EOF
 
 sysctl -p
 
-# تعزيز حجم المخزن المؤقت
-echo "📡 زيادة Buffer لمنع فقدان البيانات!"
-sysctl -w net.ipv4.udp_rmem_max=4294967296
-sysctl -w net.ipv4.udp_wmem_max=4294967296
-
-# تحسين توزيع الحمل عبر QoS
-echo "🔥 ضبط QoS لجعل الاتصال أكثر سلاسة!"
-tc qdisc replace dev eth0 root fq_codel
-
-# ضبط إعدادات بطاقة الشبكة
-echo "🔧 ضبط بطاقة الشبكة لتحقيق استقرار مطلق!"
+# ضبط إعدادات كرت الشبكة
+echo "🔧 ضبط بطاقة الشبكة لتحسين الأداء!"
 IFACE="eth0"
-ethtool -G $IFACE rx 2097152 tx 2097152
+ethtool -G $IFACE rx 8192 tx 8192
 ethtool -C $IFACE adaptive-rx off adaptive-tx off
 ethtool -C $IFACE rx-usecs 0 tx-usecs 0
-ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
-ethtool -A $IFACE rx off tx off
-ethtool -s $IFACE speed 50000 duplex full autoneg off
-ethtool -K $IFACE xdp on  # تفعيل XDP لتحسين معالجة الحزم!
+ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off
+ethtool -s $IFACE speed 10000 duplex full autoneg off
+ethtool -K $IFACE xdp on
 
-# ضبط `txqueuelen` لمنع التراجع في الأداء
-echo "⚡ ضبط txqueuelen لتقليل التأخير!"
-ifconfig eth0 txqueuelen 500000
+# تحسين MTU لو كان السيرفر يدعمها
+echo "📡 ضبط MTU إلى 1500 (أو أعلى حسب الحاجة)!"
+ifconfig $IFACE mtu 1500
+sysctl -w net.ipv4.route_min_pmtu=1000
+sysctl -w net.ipv4.tcp_mtu_probing=1
 
-echo "✅ تم تطبيق التحسينات! 🚀 يجب أن يكون الاتصال مستقرًا الآن!"
-echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
+# تحسين الـ Buffer و QoS
+echo "⚡ ضبط txqueuelen وتقسيم الحزم بسلاسة!"
+ifconfig $IFACE txqueuelen 100000
+tc qdisc replace dev $IFACE root fq_codel
+
+# رفع حدود الملفات المفتوحة
+ulimit -n 1048576
+cat >> /etc/security/limits.conf <<EOF
+* soft nofile 1048576
+* hard nofile 1048576
+EOF
+
+echo "✅ تم تطبيق التحسينات بنجاح! 🚀 الشبكة الآن تجمع بين السرعة والاستقرار!"
+echo "📢 يُنصح بإعادة تشغيل السيرفر لتفعيل الإعدادات كلياً."
