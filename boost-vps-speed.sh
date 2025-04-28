@@ -27,9 +27,6 @@ sysctl -w net.core.default_qdisc=fq_codel
 sysctl -w net.ipv4.udp_rmem_max=2147483648
 sysctl -w net.ipv4.udp_wmem_max=2147483648
 
-#ضبط IRQ Balance لتوزيع حمل المعالجة إذا كان السيرفر يعمل على معالج متعدد الأنوية، فهذا يعزز الأداء:
-sysctl -w kernel.numa_balancing=1
-
 # تحسين استجابة الشبكة عبر ضبط TCP/UDP
 net.ipv4.tcp_timestamps = 0
 net.ipv4.tcp_slow_start_after_idle = 0
