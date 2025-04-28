@@ -41,7 +41,6 @@ ethtool -K $IFACE xdp on  # تفعيل XDP لتحسين معالجة الحزم!
 
 # ضبط MTU للحصول على تدفق ضخم للحزم
 echo "📡 ضبط MTU إلى 9000 أو التكيف التلقائي!"
-ifconfig $IFACE mtu 9000
 sysctl -w net.ipv4.route_min_pmtu=1000
 sysctl -w net.ipv4.tcp_mtu_probing=1
 
