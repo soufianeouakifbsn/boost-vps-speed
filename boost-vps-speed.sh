@@ -1,18 +1,18 @@
 #!/bin/bash
-echo "🚀 تعزيز إعدادات الشبكة لضمان سرعة قصوى عبر UDP! ⚡"
+echo "🚀 تعزيز إعدادات الشبكة لتحقيق سرعة قصوى عبر UDP! ⚡"
 
 # تحسين إدارة الحزم عبر الشبكة
 cat > /etc/sysctl.conf <<EOF
-net.core.rps_sock_flow_entries = 2097152
-net.core.netdev_max_backlog = 80000000
+net.core.rps_sock_flow_entries = 4194304
+net.core.netdev_max_backlog = 160000000
 
 # تعزيز تدفق البيانات عبر UDP
-net.core.optmem_max = 4294967296
-net.ipv4.udp_mem = 1048576 8388608 17179869184
-net.ipv4.udp_rmem_min = 1048576
-net.ipv4.udp_wmem_min = 1048576
-net.ipv4.udp_rmem_max = 268435456
-net.ipv4.udp_wmem_max = 268435456
+net.core.optmem_max = 8589934592
+net.ipv4.udp_mem = 2097152 16777216 34359738368
+net.ipv4.udp_rmem_min = 2097152
+net.ipv4.udp_wmem_min = 2097152
+net.ipv4.udp_rmem_max = 536870912
+net.ipv4.udp_wmem_max = 536870912
 
 # تحسين إدارة حركة المرور عبر الشبكة
 net.core.default_qdisc = cake
@@ -26,7 +26,7 @@ sysctl -p
 # ضبط إعدادات بطاقة الشبكة
 echo "🔧 ضبط بطاقة الشبكة لتحقيق أقصى سرعة!"
 IFACE="eth0"
-ethtool -G $IFACE rx 262144 tx 262144
+ethtool -G $IFACE rx 524288 tx 524288
 ethtool -C $IFACE adaptive-rx off adaptive-tx off
 ethtool -C $IFACE rx-usecs 0 tx-usecs 0
 ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
@@ -34,12 +34,12 @@ ethtool -A $IFACE rx off tx off
 ethtool -s $IFACE speed 10000 duplex full autoneg off
 
 # ضبط حدود الملفات المفتوحة
-ulimit -n 268435456
+ulimit -n 536870912
 
 # تعديل الملفات الدائمة
 cat >> /etc/security/limits.conf <<EOF
-* soft nofile 268435456
-* hard nofile 268435456
+* soft nofile 536870912
+* hard nofile 536870912
 EOF
 
 echo "✅ تم تطبيق جميع التعديلات! 🚀 الشبكة الآن جاهزة لنقل البيانات بسرعة خارقة عبر UDP!"
