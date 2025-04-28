@@ -12,13 +12,13 @@ cat > /etc/hysteria/config.yaml << EOF
 listen: :5678
 auth:
   type: password
-  password: yourpassword
+  password: lwalida
 up_mbps: 100
 down_mbps: 100
 obfs:
   type: salamander
   salamander:
-    password: obfuscationpassword
+    password: lwalida
 EOF
 
 # إعادة تشغيل الخدمة
