@@ -1,81 +1,135 @@
 #!/bin/bash
-echo "🚀 تعزيز إعدادات الشبكة لتحقيق سرعة قصوى في التحميل والرفع عبر UDP! ⚡"
 
-# تحسين إدارة الحزم عبر الشبكة
+set -e
+
+echo "🚀 بدء تطبيق تحسينات شاملة متقدمة لضمان استقرار وأداء اتصال UDP Custom مع HTTP Custom App"
+
+# ======== تحديد واجهة الشبكة الافتراضية ========
+IFACE=$(ip -o -4 route show to default | awk '{print $5}')
+echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
+
+# ======== تحسينات نواة النظام المتقدمة ========
 cat > /etc/sysctl.conf <<EOF
-net.core.rps_sock_flow_entries = 4194304
-net.core.netdev_max_backlog = 160000000
+# ----- تحسينات أساسية لـ UDP -----
+net.core.rmem_max = 134217728
+net.core.wmem_max = 134217728
+net.core.rmem_default = 16777216
+net.core.wmem_default = 16777216
+net.ipv4.udp_rmem_min = 16384
+net.ipv4.udp_wmem_min = 16384
 
-# تعزيز تدفق البيانات عبر UDP (تحميل ورفع بسرعة خارقة)
-net.core.optmem_max = 17179869184
-net.ipv4.udp_mem = 4194304 33554432 68719476736
-net.ipv4.udp_rmem_min = 4194304
-net.ipv4.udp_wmem_min = 4194304
-net.ipv4.udp_rmem_max = 1073741824
-net.ipv4.udp_wmem_max = 2147483648
+# ----- تحسين أداء UDP -----
+net.ipv4.udp_mem = 65536 131072 134217728
+net.ipv4.udp_so_reuseport = 1
 
-# تحسين إدارة حركة المرور عبر الشبكة
-net.core.default_qdisc = fq_codel  # تحسين الثبات عبر خوارزمية fq_codel
+# ----- تقليل فقدان الحزم والخنق -----
+net.core.netdev_max_backlog = 250000
+net.core.somaxconn = 8192
+net.core.optmem_max = 33554432
+
+# ----- استقرار الاتصالات والتتبع -----
+net.netfilter.nf_conntrack_max = 1048576
+net.netfilter.nf_conntrack_buckets = 262144
+net.netfilter.nf_conntrack_udp_timeout = 120
+net.netfilter.nf_conntrack_udp_timeout_stream = 300
+
+# ----- تحسينات TCP لتجنب التأثير السلبي على UDP -----
 net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_mtu_probing = 2
-net.ipv4.tcp_ecn = 1
-
-#تمكين fq_codel على VPS لتقليل التأخير
-sysctl -w net.core.default_qdisc=fq_codel
-sysctl -w net.core.optmem_max=17179869184
-
-
-# تحسين استجابة الشبكة عبر ضبط TCP/UDP
-net.ipv4.tcp_timestamps = 0
 net.ipv4.tcp_slow_start_after_idle = 0
-net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_mtu_probing = 1
+net.core.default_qdisc = fq_codel
+
+# ----- تحسينات عامة للنظام -----
+fs.file-max = 2097152
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+net.ipv4.ip_forward = 1
+net.ipv4.ip_local_port_range = 1024 65535
+
+# ----- تحسين UDP -----
+net.ipv4.udp_early_demux = 1
+net.ipv4.udp_l3mdev_accept = 1
+
+# ----- تحسين الذاكرة -----
+vm.overcommit_memory = 1
 EOF
 
 sysctl -p
 
-# ضبط إعدادات بطاقة الشبكة
-echo "🔧 ضبط بطاقة الشبكة لتحقيق أقصى سرعة في التحميل والرفع!"
-IFACE="eth0"
-ethtool -G $IFACE rx 1048576 tx 1048576
-ethtool -C $IFACE adaptive-rx off adaptive-tx off
-ethtool -C $IFACE rx-usecs 0 tx-usecs 0
-ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
-ethtool -A $IFACE rx off tx off
-ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
-ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
-
-# ضبط MTU للحصول على تدفق ضخم للحزم
-echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
-ifconfig $IFACE mtu 9000
-
-# تعزيز سرعة الرفع عبر UDP
-echo "🔥 رفع سرعة الرفع عبر UDP إلى الحد الأقصى!"
-ethtool -G $IFACE tx 2097152  # رفع المخزن المؤقت للإرسال
-
-# ضبط استقرار اتصال الشبكة
-echo "🔥 تحسين استقرار الشبكة عبر ضبط CPU Affinity!"
-sysctl -w net.core.somaxconn=65535
-sysctl -w net.core.netdev_max_backlog=500000
-
-# تحسين استجابة المعالج لمعالجة الحزم
-sysctl -w kernel.numa_balancing=1
-sysctl -w kernel.numa_balancing_scan_delay_ms=500
-
-# ضبط اتصال الـ MTU بشكل ديناميكي
-sysctl -w net.ipv4.route_min_pmtu=1000
-sysctl -w net.ipv4.tcp_mtu_probing=1
-
-#تمكين TCP_FASTOPEN لتسريع الاتصال
-sysctl -w net.ipv4.tcp_fastopen=3
-
-# ضبط حدود الملفات المفتوحة
-ulimit -n 536870912
-
-# تعديل الملفات الدائمة
-cat >> /etc/security/limits.conf <<EOF
-* soft nofile 536870912
-* hard nofile 536870912
+# ======== إعدادات حدود الملفات المفتوحة ========
+cat > /etc/security/limits.conf <<EOF
+* soft nofile 1048576
+* hard nofile 1048576
+root soft nofile 1048576
+root hard nofile 1048576
 EOF
 
-echo "✅ الشبكة الآن جاهزة لنقل البيانات بأقصى سرعة تحميل وأقصى سرعة رفع عبر UDP!"
-echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
+ulimit -n 1048576
+
+# ======== تحسين جدولة حزم الشبكة ========
+tc qdisc del dev $IFACE root 2>/dev/null || true
+
+# fq_codel لتقليل التأخير مع إعدادات مناسبة
+tc qdisc add dev $IFACE root fq_codel quantum 1400 target 5ms interval 100ms flows 32768 ecn
+
+# ضبط طابور الإرسال لتقليل فقدان الحزم
+ifconfig $IFACE txqueuelen 10000
+
+# ======== تحسين كرت الشبكة ========
+# تعطيل interrupt coalescence لتقليل التأخير
+ethtool -C $IFACE rx-usecs 0 tx-usecs 0 rx-frames 1 tx-frames 1 2>/dev/null || true
+
+# ضبط حجم حلقات الإرسال والاستقبال
+ethtool -G $IFACE rx 4096 tx 4096 2>/dev/null || true
+
+# ضبط offloads لتحسين أداء UDP
+ethtool -K $IFACE gso on gro on tso on ufo off lro off tx on rx on sg on 2>/dev/null || true
+
+# ======== ضبط عدد العمليات المتزامنة للنظام ========
+echo 65000 > /proc/sys/kernel/threads-max
+echo 65000 > /proc/sys/vm/max_map_count
+echo 65000 > /proc/sys/kernel/pid_max
+
+# ======== إزالة قواعد iptables تقييدية ========
+iptables -t mangle -F
+ip6tables -t mangle -F
+
+echo "✅ تم إزالة أي قواعد تقييد محتملة لتدفق البيانات"
+
+# ======== تحسينات خاصة بشبكات الجوال المغربية (مثل inwi) ========
+# تنظيف أي قواعد tc موجودة مسبقًا
+tc qdisc del dev $IFACE root 2>/dev/null || true
+
+tc qdisc add dev $IFACE root handle 1: prio
+tc qdisc add dev $IFACE parent 1:1 handle 10: sfq perturb 10
+tc qdisc add dev $IFACE parent 1:2 handle 20: sfq perturb 10
+tc qdisc add dev $IFACE parent 1:3 handle 30: sfq perturb 10
+
+echo "✅ تم تطبيق تحسينات خاصة بشبكات الجوال المغربية"
+
+# ======== إنشاء خدمة systemd لتطبيق تحسينات الشبكة تلقائيًا عند الإقلاع ========
+cat > /etc/systemd/system/udp-custom-optimize.service <<EOF
+[Unit]
+Description=UDP Custom Optimization Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'IFACE=\$(ip -o -4 route show to default | awk "{print \$5}"); \
+tc qdisc replace dev \$IFACE root fq_codel quantum 1400 target 5ms interval 100ms flows 32768 ecn; \
+ifconfig \$IFACE txqueuelen 10000; \
+tc qdisc replace dev \$IFACE root handle 1: prio; \
+tc qdisc replace dev \$IFACE parent 1:1 handle 10: sfq perturb 10; \
+tc qdisc replace dev \$IFACE parent 1:2 handle 20: sfq perturb 10; \
+tc qdisc replace dev \$IFACE parent 1:3 handle 30: sfq perturb 10;'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable udp-custom-optimize.service
+
+echo "🔥 تم تطبيق جميع التحسينات بنجاح!"
+echo "⚡ يُفضل إعادة تشغيل السيرفر الآن لتفعيل كافة التغييرات: sudo reboot"
