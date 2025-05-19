@@ -2,13 +2,26 @@
 
 set -e
 
-echo "🚀 بدء تطبيق تحسينات شاملة معتدلة لضمان استقرار وأداء اتصال UDP Custom مع HTTP Custom App"
+echo "🚀 بدء تطبيق تحسينات شاملة معتدلة لضمان استقرار وأداء اتصال UDP Custom مع HTTP Custom App باستخدام PCC"
+
+# ======== تثبيت وتفعيل وحدة PCC ========
+echo "⚙️ تثبيت وتفعيل خوارزمية PCC للتحكم في الازدحام..."
+
+# التحقق من وجود وحدة PCC وتحميلها إذا كانت متاحة
+if [ -f "/lib/modules/$(uname -r)/kernel/net/ipv4/tcp_pcc.ko" ]; then
+    modprobe tcp_pcc
+    echo "✅ تم تحميل وحدة PCC بنجاح"
+else
+    echo "⚠️ وحدة PCC غير متوفرة في النواة الحالية. سيتم محاولة استخدام وحدة متوافقة..."
+    # محاولة استخدام BBR كبديل إذا كان PCC غير متوفر
+    modprobe tcp_bbr
+    sed -i 's/net.ipv4.tcp_congestion_control = pcc/net.ipv4.tcp_congestion_control = bbr/g' /etc/sysctl.conf
+    echo "🔄 تم استخدام BBR كبديل لـ PCC"
+fi
 
 # ======== تحديد واجهة الشبكة الافتراضية ========
 IFACE=$(ip -o -4 route show to default | awk '{print $5}')
 echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
-
-# ======== تحسينات نواة النظام المعتدلة ========
 cat > /etc/sysctl.conf <<EOF
 # ----- تحسينات أساسية لـ UDP بقيم معتدلة -----
 net.core.rmem_max = 26214400
@@ -34,10 +47,10 @@ net.netfilter.nf_conntrack_udp_timeout = 60
 net.netfilter.nf_conntrack_udp_timeout_stream = 180
 
 # ----- تحسينات TCP لتجنب التأثير السلبي على UDP -----
-net.ipv4.tcp_congestion_control = hybla
+net.ipv4.tcp_congestion_control = pcc
 net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_mtu_probing = 1
-net.core.default_qdisc = fq
+net.core.default_qdisc = fq_pie
 
 # ----- تحسينات عامة للنظام -----
 fs.file-max = 1048576
@@ -65,8 +78,8 @@ ulimit -n 524288
 # ======== تحسين جدولة حزم الشبكة (إعدادات أكثر اعتدالاً) ========
 tc qdisc del dev $IFACE root 2>/dev/null || true
 
-# أكثر اعتدالا لشبكات إنوي
-tc qdisc add dev $IFACE root fq quantum 1400 flow_limit 1024
+# استخدام PIE لتحسين التعامل مع تقلبات شبكات الجوال المغربية
+tc qdisc add dev $IFACE root pie limit 1000 target 15ms
 
 # ضبط طابور الإرسال بقيمة معتدلة
 ifconfig $IFACE txqueuelen 5000
@@ -101,7 +114,7 @@ After=network.target
 [Service]
 Type=oneshot
 ExecStart=/bin/bash -c 'IFACE=\$(ip -o -4 route show to default | awk "{print \$5}"); \
-tc qdisc replace dev \$IFACE root fq quantum 1400 flow_limit 1024; \
+tc qdisc replace dev \$IFACE root pie limit 1000 target 15ms; \
 ifconfig \$IFACE txqueuelen 5000; \
 tc qdisc replace dev \$IFACE root handle 1: prio bands 3; \
 tc qdisc replace dev \$IFACE parent 1:1 handle 10: sfq; \
@@ -116,5 +129,5 @@ EOF
 systemctl daemon-reload
 systemctl enable udp-custom-optimize.service
 
-echo "🔥 تم تطبيق جميع التحسينات المتوازنة بنجاح!"
+echo "🔥 تم تطبيق جميع التحسينات المتوازنة مع خوارزمية PCC بنجاح!"
 echo "⚡ يُفضل إعادة تشغيل السيرفر الآن لتفعيل كافة التغييرات: sudo reboot"
