@@ -34,7 +34,7 @@ net.netfilter.nf_conntrack_udp_timeout = 60
 net.netfilter.nf_conntrack_udp_timeout_stream = 180
 
 # ----- تحسينات TCP لتجنب التأثير السلبي على UDP -----
-net.ipv4.tcp_congestion_control = cubic
+net.ipv4.tcp_congestion_control = hybla
 net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_mtu_probing = 1
 net.core.default_qdisc = fq
