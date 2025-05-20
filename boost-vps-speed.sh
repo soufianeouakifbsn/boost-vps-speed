@@ -15,15 +15,10 @@ net.ipv4.udp_rmem_max = 1073741824
 net.ipv4.udp_wmem_max = 2147483648
 
 # تحسين إدارة حركة المرور عبر الشبكة
-net.core.default_qdisc = fq_codel  # تحسين الثبات عبر خوارزمية fq_codel
+net.core.default_qdisc = cake
 net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_mtu_probing = 2
 net.ipv4.tcp_ecn = 1
-
-# تحسين استجابة الشبكة عبر ضبط TCP/UDP
-net.ipv4.tcp_timestamps = 0
-net.ipv4.tcp_slow_start_after_idle = 0
-net.ipv4.tcp_fastopen = 3
 EOF
 
 sysctl -p
@@ -37,7 +32,7 @@ ethtool -C $IFACE rx-usecs 0 tx-usecs 0
 ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
 ethtool -A $IFACE rx off tx off
 ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
-ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
+ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم!
 
 # ضبط MTU للحصول على تدفق ضخم للحزم
 echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
@@ -46,22 +41,6 @@ ifconfig $IFACE mtu 9000
 # تعزيز سرعة الرفع عبر UDP
 echo "🔥 رفع سرعة الرفع عبر UDP إلى الحد الأقصى!"
 ethtool -G $IFACE tx 2097152  # رفع المخزن المؤقت للإرسال
-
-# ضبط استقرار اتصال الشبكة
-echo "🔥 تحسين استقرار الشبكة عبر ضبط CPU Affinity!"
-sysctl -w net.core.somaxconn=65535
-sysctl -w net.core.netdev_max_backlog=500000
-
-# تحسين استجابة المعالج لمعالجة الحزم
-sysctl -w kernel.numa_balancing=1
-sysctl -w kernel.numa_balancing_scan_delay_ms=500
-
-# ضبط اتصال الـ MTU بشكل ديناميكي
-sysctl -w net.ipv4.route_min_pmtu=1000
-sysctl -w net.ipv4.tcp_mtu_probing=1
-
-#تمكين TCP_FASTOPEN لتسريع الاتصال
-sysctl -w net.ipv4.tcp_fastopen=3
 
 # ضبط حدود الملفات المفتوحة
 ulimit -n 536870912
