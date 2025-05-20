@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
-echo "🚀 بدء تطبيق تحسينات متقدمة لتثبيت وتقليل تقطع ping"
+echo "🚀 بدء تطبيق تحسينات متقدمة جداً لتقليل تقلبات ping وتثبيته"
 
 IFACE=$(ip -o -4 route show to default | awk '{print $5}')
-echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
+echo "🔍 واجهة الشبكة المكتشفة: $IFACE"
 
-# إعدادات sysctl مع إضافة ضبط إضافي للـ MTU وتحسين TCP وUDP
+# تحديث sysctl مع تحسينات متقدمة لتأخير أقل واستقرار أعلى
 cat > /etc/sysctl.conf <<EOF
 net.core.rmem_max = 33554432
 net.core.wmem_max = 33554432
@@ -68,6 +68,7 @@ EOF
 
 sysctl -p
 
+# رفع الحد الأقصى للملفات المفتوحة
 cat > /etc/security/limits.conf <<EOF
 * soft nofile 1048576
 * hard nofile 1048576
@@ -77,13 +78,13 @@ EOF
 
 ulimit -n 1048576
 
-# حذف وضبط qdisc مع تحسين MTU و txqueuelen
+# حذف وضبط qdisc مع تحسين fq_codel المتقدم وضبط MTU و txqueuelen
 tc qdisc del dev $IFACE root 2>/dev/null || true
-tc qdisc add dev $IFACE root fq_codel
+tc qdisc add dev $IFACE root fq_codel limit 1000 ecn
 ip link set dev $IFACE txqueuelen 1000
 ip link set dev $IFACE mtu 1400
 
-# تنظيف قواعد iptables وضبط QoS متقدم على UDP
+# تنظيف قواعد iptables وضبط QoS متقدم للـ UDP و DSCP
 iptables -t raw -F
 iptables -t mangle -F
 iptables -t nat -F
@@ -105,7 +106,7 @@ iptables -t mangle -A POSTROUTING -p udp -j TOS --set-tos Minimize-Delay
 iptables -t raw -A PREROUTING -p udp -j NOTRACK
 iptables -t raw -A OUTPUT -p udp -j NOTRACK
 
-# تعطيل بعض الإعدادات لتقليل التأخير
+# تعطيل بعض الإعدادات لتقليل التأخير والتقلب
 echo 0 > /proc/sys/net/ipv4/tcp_timestamps
 echo 0 > /proc/sys/net/ipv4/tcp_no_metrics_save
 
@@ -114,18 +115,23 @@ echo 131072 > /proc/sys/kernel/threads-max
 echo 131072 > /proc/sys/vm/max_map_count
 echo 131072 > /proc/sys/kernel/pid_max
 
-# تفعيل RPS لكل صفوف الاستقبال
+# تفعيل RPS لكل صفوف الاستقبال لتوزيع التحميل
 for i in /sys/class/net/$IFACE/queues/rx-*; do
   echo 255 > $i/rps_cpus 2>/dev/null || true
 done
 
-# تعيين governor الخاص بالمعالج على performance
+# تعيين governor الخاص بالمعالج على performance لتحسين استجابة النظام
 for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
   echo performance > $cpu 2>/dev/null || true
 done
 
+# تشغيل irqbalance لتوزيع مقاطعات الأجهزة بشكل متوازن
 systemctl enable irqbalance
 systemctl start irqbalance
 
-echo "✅ تم تطبيق تحسينات متقدمة لتثبيت ping"
-echo "⚠️ يرجى إعادة تشغيل النظام لتفعيل جميع التغييرات: sudo reboot"
+# ضبط DNS لحل سريع ومستقر
+echo "nameserver 1.1.1.1" > /etc/resolv.conf
+echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+
+echo "✅ تم تطبيق جميع التحسينات المتقدمة لتقليل تقلبات ping"
+echo "⚠️ ينصح بإعادة تشغيل النظام لتفعيل كل التغييرات: sudo reboot"
