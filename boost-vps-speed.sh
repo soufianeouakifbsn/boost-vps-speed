@@ -1,9 +1,7 @@
 #!/bin/bash
 set -e
-echo "🚀 بدء تطبيق تحسينات متخصصة لتخفيض ping بشكل رهيب"
 
 IFACE=$(ip -o -4 route show to default | awk '{print $5}')
-echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
 
 cat > /etc/sysctl.conf <<EOF
 net.core.rmem_max = 33554432
@@ -42,8 +40,8 @@ net.ipv4.tcp_syn_retries = 0
 net.ipv4.tcp_retries1 = 1
 net.ipv4.tcp_retries2 = 2
 net.ipv4.udp_early_demux = 1
-net.core.netdev_max_backlog = 10000
-net.core.somaxconn = 8192
+net.core.netdev_max_backlog = 5000
+net.core.somaxconn = 4096
 net.core.optmem_max = 33554432
 net.netfilter.nf_conntrack_max = 524288
 net.netfilter.nf_conntrack_buckets = 131072
@@ -62,7 +60,7 @@ net.ipv4.route.gc_timeout = 10
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.conf.default.rp_filter = 0
 net.ipv4.tcp_mtu_probing = 1
-net.core.default_qdisc = fq_codel
+net.core.default_qdisc = cake
 EOF
 
 sysctl -p
@@ -77,9 +75,12 @@ EOF
 ulimit -n 1048576
 
 tc qdisc del dev $IFACE root 2>/dev/null || true
-tc qdisc add dev $IFACE root fq_codel
-ip link set dev $IFACE txqueuelen 2000
-ip link set dev $IFACE mtu 1350
+tc qdisc add dev $IFACE root cake
+
+ethtool -K $IFACE tso off gso off gro off 2>/dev/null || true
+ip link set dev $IFACE txqueuelen 1000
+optimal_mtu=$(ping -M do -s 1472 8.8.8.8 | grep -oP 'MTU \K\d+')
+ip link set dev $IFACE mtu ${optimal_mtu:-1500}
 
 iptables -t raw -F
 iptables -t mangle -F
@@ -89,15 +90,6 @@ iptables -t raw -X
 iptables -t mangle -X
 iptables -t nat -X
 iptables -t filter -X
-
-iptables -t mangle -N UDP_MARK 2>/dev/null || true
-iptables -t mangle -F UDP_MARK
-iptables -t mangle -A UDP_MARK -j MARK --set-mark 1
-iptables -t mangle -A UDP_MARK -j DSCP --set-dscp-class EF
-iptables -t mangle -A PREROUTING -p udp -j UDP_MARK
-iptables -t mangle -A OUTPUT -p udp -j UDP_MARK
-iptables -t mangle -A POSTROUTING -p udp -j DSCP --set-dscp-class EF
-iptables -t mangle -A POSTROUTING -p udp -j TOS --set-tos Minimize-Delay
 
 iptables -t raw -A PREROUTING -p udp -j NOTRACK
 iptables -t raw -A OUTPUT -p udp -j NOTRACK
@@ -110,7 +102,7 @@ echo 131072 > /proc/sys/vm/max_map_count
 echo 131072 > /proc/sys/kernel/pid_max
 
 for i in /sys/class/net/$IFACE/queues/rx-*; do
-  echo 255 > $i/rps_cpus 2>/dev/null || true
+  echo 0 > $i/rps_cpus 2>/dev/null || true
 done
 
 for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
@@ -120,5 +112,6 @@ done
 systemctl enable irqbalance
 systemctl start irqbalance
 
-echo "✅ تم تطبيق تحسينات تخفيض ping رهيبة"
-echo "⚠️ يرجى إعادة تشغيل النظام لتفعيل جميع التغييرات: sudo reboot"
+ethtool -s $IFACE wol d 2>/dev/null || true
+
+ping -i 0.2 -c 100 8.8.8.8
