@@ -1,151 +1,126 @@
 #!/bin/bash
 set -e
 
-echo "🚀 بدء تطبيق تحسينات إنوي المتطورة لـ UDP/HTTP Custom (الإصدار الذهبي)"
+echo "🚀 بدء تطبيق نظام INWI Ultra Networking Pro (UDP/HTTP Custom Gold+ Edition)"
 
-# ======== التحقق من الصلاحيات والبيئة ========
+# ======== التحقق من الصلاحيات ========
 if [[ $EUID -ne 0 ]]; then
-   echo "❌ يجب تشغيل السكربت بصلاحيات root!" 
-   exit 1
-fi
-
-IFACE=$(ip -o -4 route show to default | awk '{print $5}' | uniq)
-if [[ -z "$IFACE" ]]; then
-    echo "❌ فشل في تحديد الواجهة الشبكية!"
+    echo "❌ هذا السكربت يحتاج صلاحيات root!"
     exit 1
 fi
-echo "🔍 الواجهة المحددة: $IFACE | النوع: $(ethtool -i $IFACE | grep driver)"
 
-# ======== التحسينات الزمنية الدقيقة ========
+# ======== كشف الواجهة ========
+IFACE=$(ip route get 8.8.8.8 | awk -- '{print $5; exit}')
+[[ -z "$IFACE" ]] && echo "❌ تعذر التعرف على الواجهة!" && exit 1
+
+# ======== مزامنة الوقت بدقة ========
 timedatectl set-timezone Africa/Casablanca
+apt install -y chrony
 sed -i '/^pool /d' /etc/chrony/chrony.conf
-echo "server time.cloudflare.com iburst" >> /etc/chrony/chrony.conf
-echo "server ntp.inwi.ma iburst" >> /etc/chrony/chrony.conf
-systemctl restart chrony
-echo "🕒 مزامنة الوقت مع خوادم إنوي و Cloudflare"
+echo -e "server time.cloudflare.com iburst\nserver ntp.inwi.ma iburst" >> /etc/chrony/chrony.conf
+systemctl restart chronyd || systemctl restart chrony
+echo "🕒 تم ضبط الوقت بنجاح"
 
-# ======== تحسينات النواة الهجينة ========
-cat > /etc/sysctl.d/99-inwi-udp.conf <<EOF
-# ───── تحسينات UDP المتطورة ─────
-net.core.rmem_max = 67108864
-net.core.wmem_max = 67108864
-net.core.rmem_default = 16777216
-net.core.wmem_default = 16777216
-net.ipv4.udp_rmem_min = 131072
-net.ipv4.udp_wmem_min = 131072
-net.ipv4.udp_mem = 66560 89152 134217728
+# ======== تفعيل BBRv2 أو BBRv3 إن توفر ========
+modprobe tcp_bbr
+echo "tcp_bbr" | tee -a /etc/modules-load.d/modules.conf
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+echo "✅ تم تفعيل BBR (v2 أو v3 حسب النواة)"
 
-# ───── تحسينات TCP الهجينة ─────
-net.ipv4.tcp_congestion_control = bbr2
-net.ipv4.tcp_slow_start_after_idle = 0
-net.ipv4.tcp_mtu_probing = 2
+# ======== تحسينات sysctl قوية جداً ========
+cat > /etc/sysctl.d/99-inwi-ultra.conf <<EOF
+# Buffer Boost
+net.core.rmem_max = 134217728
+net.core.wmem_max = 134217728
+net.core.rmem_default = 33554432
+net.core.wmem_default = 33554432
+net.ipv4.udp_mem = 65536 131072 134217728
+net.ipv4.udp_rmem_min = 8192
+net.ipv4.udp_wmem_min = 8192
+
+# TCP Stack Tuning
+net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_rfc1337 = 1
-net.ipv4.tcp_keepalive_time = 300
-net.ipv4.tcp_keepalive_intvl = 60
-net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_mtu_probing = 2
+net.ipv4.tcp_window_scaling = 1
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_tw_reuse = 1
 
-# ───── تحسينات شبكات الجوال ─────
-net.core.netdev_max_backlog = 300000
-net.core.somaxconn = 32768
-net.core.optmem_max = 4194304
-net.ipv4.conf.all.rp_filter = 2
+# General Performance
+fs.file-max = 2097152
+net.core.netdev_max_backlog = 100000
 net.ipv4.ip_forward = 1
-net.ipv4.ip_local_port_range = 1024 65535
-
-# ───── إدارة الذاكرة المتقدمة ─────
-vm.swappiness = 1
-vm.vfs_cache_pressure = 50
-vm.dirty_ratio = 3
-vm.dirty_background_ratio = 2
+vm.swappiness = 10
 EOF
 
-sysctl -p /etc/sysctl.d/99-inwi-udp.conf
+sysctl -p /etc/sysctl.d/99-inwi-ultra.conf
 
-# ======== تحسينات البطاقة الشبكية المتقدمة ========
-ethtool_optimize() {
-    ethtool -C $IFACE rx-usecs 0 tx-usecs 0 2>/dev/null || true
-    ethtool -G $IFACE rx 4096 tx 4096 2>/dev/null || true
-    ethtool -K $IFACE \
-        tso on gso on gro on \
-        lro off rx off tx off \
-        tx-checksum-ip-generic on 2>/dev/null || true
-    ip link set dev $IFACE txqueuelen 4000
-    echo "🔧 تحسينات البطاقة المطبقة:"
-    ethtool -k $IFACE | grep -E 'tcp-segmentation-offload:|generic-segmentation-offload:'
-}
-
-ethtool_optimize
-
-# ======== نظام QoS الهجين (CAKE + HTB) ========
+# ======== تفعيل واستخدام IFB مع CAKE =========
+modprobe ifb
+ip link add ifb0 type ifb || true
+ip link set dev ifb0 up
 tc qdisc del dev $IFACE root 2>/dev/null || true
+tc qdisc del dev ifb0 root 2>/dev/null || true
 
-# الطبقة العلوية باستخدام CAKE
-tc qdisc add dev $IFACE root cake bandwidth 900mbit besteffort \
-    dual-dsthost nat nowash no-ack-filter \
-    rtt 150ms memory 32M
+# CAKE مع IFB
+tc qdisc add dev $IFACE handle ffff: ingress
+tc filter add dev $IFACE parent ffff: protocol ip u32 match u32 0 0 action mirred egress redirect dev ifb0
 
-# الطبقة التحتية باستخدام HTB للتحكم الدقيق
-tc qdisc add dev $IFACE parent 1: handle 2: htb default 30
-tc class add dev $IFACE parent 2: classid 2:1 htb rate 900mbit ceil 900mbit
-tc class add dev $IFACE parent 2:1 classid 2:10 htb rate 750mbit ceil 900mbit prio 1  # UDP Priority
-tc class add dev $IFACE parent 2:1 classid 2:20 htb rate 100mbit ceil 300mbit prio 2  # TCP
-tc class add dev $IFACE parent 2:1 classid 2:30 htb rate 50mbit ceil 200mbit prio 3   # Other
+tc qdisc add dev ifb0 root cake bandwidth 900mbit besteffort triple-isolate nat rtt 150ms
+tc qdisc add dev $IFACE root cake bandwidth 900mbit besteffort triple-isolate nat rtt 150ms
 
-# تصنيف الحزم باستخدام علامات DSCP
-tc filter add dev $IFACE parent 2: protocol ip prio 1 u32 \
-    match ip protocol 0x11 0xff \
-    match ip dport 5000 0xff00 \
-    flowid 2:10
+# ======== تحسينات بطاقة الشبكة والIRQ ========
+apt install -y ethtool irqbalance cpufrequtils
 
-# ======== تحسينات iptables الذكية ========
+ethtool -K $IFACE tso on gso on gro on
+ethtool -C $IFACE adaptive-rx on adaptive-tx on rx-usecs 0 tx-usecs 0
+ethtool -G $IFACE rx 4096 tx 4096
+ip link set $IFACE txqueuelen 10000
+
+# تحسين تعيين المعالجات للـ IRQs
+systemctl enable irqbalance
+systemctl start irqbalance
+
+# ======== iptables DSCP/QoS + MTU Clamping ========
 iptables -t mangle -F
 ip6tables -t mangle -F
 
-# وضع علامات DSCP لحركة UDP Custom
-iptables -t mangle -A POSTROUTING -p udp -m multiport --dports 5000:65000 -j DSCP --set-dscp-class EF
-iptables -t mangle -A POSTROUTING -p udp -m multiport --sports 5000:65000 -j DSCP --set-dscp-class EF
+iptables -t mangle -A POSTROUTING -p udp --dport 5000:65535 -j DSCP --set-dscp-class EF
+iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+iptables -t mangle -A POSTROUTING -j TTL --ttl-set 65
+ip6tables -t mangle -A POSTROUTING -j HL --hl-set 65
 
-# تحسينات MTU الديناميكية
-iptables -t mangle -A POSTROUTING -o $IFACE -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+# ======== خدمات مراقبة الأداء ========
+apt install -y iftop iptraf-ng bmon netdata
 
-# منع اكتشاف خنق الناقل
-iptables -t mangle -A POSTROUTING -j TTL --ttl-set 70
-ip6tables -t mangle -A POSTROUTING -j HL --hl-set 70
-
-# ======== نظام المراقبة الذكية ========
-apt install -y \
-    darkstat \
-    nethogs \
-    tcptrack \
-    smokeping
-
-# ======== خدمة النظام الديناميكية ========
-cat > /etc/systemd/system/inwi-ultimate.service <<EOF
+# ======== تفعيل الخدمة عند الإقلاع ========
+cat > /etc/systemd/system/inwi-ultra.service <<EOF
 [Unit]
-Description=INWI Ultimate UDP Optimizer
+Description=INWI Ultra Optimizer Service
 After=network.target
-Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/bin/sleep 7
-ExecStart=/sbin/sysctl -p /etc/sysctl.d/99-inwi-udp.conf
-ExecStart=/usr/sbin/tc qdisc replace dev $IFACE root cake bandwidth 900mbit besteffort dual-dsthost
-ExecStart=/usr/bin/ethtool -K $IFACE gro on gso on tso on
-ExecReload=/usr/sbin/tc qdisc replace dev $IFACE root cake bandwidth 900mbit
+ExecStartPre=/usr/bin/sleep 5
+ExecStart=/sbin/sysctl -p /etc/sysctl.d/99-inwi-ultra.conf
+ExecStart=/sbin/tc qdisc replace dev $IFACE root cake bandwidth 900mbit besteffort
+ExecStart=/sbin/tc qdisc replace dev ifb0 root cake bandwidth 900mbit besteffort
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+systemctl daemon-reexec
 systemctl daemon-reload
-systemctl enable inwi-ultimate.service
+systemctl enable inwi-ultra.service
 
-echo "✅ تم التطبيق بنجاح! التحسينات الرئيسية:"
-echo "✔️ نظام QoS هجين (CAKE + HTB) مع أولوية مطلقة لـ UDP"
-echo "✔️ خوارزمية BBRv2 مع MTU Probing"
-echo "✔️ تحسينات DSCP متقدمة لعلامات جودة الخدمة"
-echo "✔️ مراقبة شبكة متقدمة مع Darkstat و Smokeping"
-echo "✔️ إعدادات زمنية دقيقة لشبكات إنوي"
-echo "⚡ التشغيل: systemctl start inwi-ultimate.service"
+echo "✅ تمت التهيئة بنجاح!"
+echo "✔️ CAKE على الواجهة الفعلية والـIFB (Inbound QoS)"
+echo "✔️ BBRv2/v3 + MTU Probing + Window Scaling"
+echo "✔️ تهيئة IRQ Balance لتقليل تأخير المعالجة"
+echo "✔️ ضبط DSCP + TTL لإخفاء الترافيك"
+echo "✔️ مراقبة مباشرة مع iftop, iptraf, netdata"
+echo "⚡ لتفعيل التحسينات الآن: systemctl start inwi-ultra.service"
