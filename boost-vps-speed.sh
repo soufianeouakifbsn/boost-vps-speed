@@ -1,89 +1,86 @@
 #!/bin/bash
-set -e
-echo "🚀 بدء تطبيق تحسينات محسّنة لتقليل ping وتحسين استقرار UDP Custom"
+# سكربت ضبط إعدادات sysctl لتحسين سرعة الأبلود وتحسين الأداء بشكل عام 🚀
 
-# ======== تحديد واجهة الشبكة الافتراضية ========
-IFACE=$(ip -o -4 route show to default | awk '{print $5}')
-echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
+echo "🔧 تطبيق إعدادات متقدمة للشبكة..."
 
-# ======== تحسينات نواة النظام ========
+# كتابة الإعدادات إلى sysctl.conf
 cat > /etc/sysctl.conf <<EOF
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.core.rmem_default = 262144
-net.core.wmem_default = 262144
-net.ipv4.udp_rmem_min = 8192
-net.ipv4.udp_wmem_min = 8192
-net.core.netdev_max_backlog = 50000
-net.core.somaxconn = 4096
-net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_fastopen = 3
+# ==== تحسين الشبكة ====
+
+# تخصيص ذاكرة TCP
+net.core.rmem_default = 16777216
+net.core.rmem_max = 134217728
+net.core.wmem_default = 16777216
+net.core.wmem_max = 134217728
+
+# تخصيص ذاكرة TCP أثناء النقل
+net.ipv4.tcp_rmem = 4096 87380 134217728
+net.ipv4.tcp_wmem = 4096 65536 134217728
+
+# تخصيص حجم قائمة الانتظار للـ TCP
+net.core.netdev_max_backlog = 500000
+net.core.somaxconn = 65536
+
+# استخدام TCP Cubic لتحسين الأداء
+net.ipv4.tcp_congestion_control = cubic
 net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.ip_forward = 1
-net.ipv4.tcp_keepalive_time = 300
+net.ipv4.tcp_no_metrics_save = 1
+net.ipv4.tcp_window_scaling = 1
+
+# تفعيل TCP Fast Open لتسريع الاتصال
+net.ipv4.tcp_fastopen = 3
+
+# تخصيص المجال المحلي للمنافذ
 net.ipv4.ip_local_port_range = 1024 65535
+
+# تقليل وقت الانتظار في TCP
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_tw_reuse = 1
+
+# تعطيل إعادة التوجيه في الشبكة
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+
+# تحسين الأداء في TCP
+net.ipv4.tcp_moderate_rcvbuf = 1
+net.ipv4.tcp_timestamps = 0
+
+# تحسين استقرار الاتصال
+net.ipv4.ip_forward = 1
+
+# ==== تحسين النظام ====
+
+# زيادة حد الملفات المفتوحة
 fs.file-max = 2097152
+
+# تخصيص الحد الأقصى لعدد عمليات المراقبة
+fs.inotify.max_user_watches = 524288
+
+# تخصيص الذاكرة الافتراضية
 vm.swappiness = 10
-vm.vfs_cache_pressure = 50
 EOF
 
+# تطبيق التعديلات
 sysctl -p
 
-# ======== حدود الملفات المفتوحة ========
-cat > /etc/security/limits.conf <<EOF
-* soft nofile 262144
-* hard nofile 262144
-root soft nofile 262144
-root hard nofile 262144
+echo "✅ تم تطبيق إعدادات sysctl بنجاح!"
+
+# ضبط حدود الملفات المفتوحة (ulimit)
+echo "🔧 رفع حدود الملفات المفتوحة..."
+
+ulimit -n 1048576
+
+# إضافة إعدادات دائمة
+cat >> /etc/security/limits.conf <<EOF
+
+# ==== رفع حدود الملفات المفتوحة ====
+* soft nofile 1048576
+* hard nofile 1048576
 EOF
 
-ulimit -n 262144
+echo "✅ تم ضبط limits.conf بنجاح!"
 
-# ======== إزالة إعدادات traffic control القديمة ========
-tc qdisc del dev $IFACE root 2>/dev/null || true
-
-# ======== استخدام جدولة FQ البسيطة بدون HTB ========
-tc qdisc add dev $IFACE root fq maxrate 100mbit
-
-# ======== تعيين حجم الطابور والإرسال ========
-ip link set dev $IFACE txqueuelen 4000
-ip link set dev $IFACE mtu 1400
-
-# ======== iptables – إلغاء إعدادات mark المعقدة التي قد تسبب بطء ========
-iptables -t mangle -F
-ip6tables -t mangle -F
-
-# ======== تحسينات موارد النظام ========
-echo 65536 > /proc/sys/kernel/threads-max
-echo 65536 > /proc/sys/vm/max_map_count
-echo 65536 > /proc/sys/kernel/pid_max
-
-# ======== خدمة systemd خفيفة للتحسينات عند الإقلاع ========
-cat > /etc/systemd/system/udp-custom-optimize.service <<EOF
-[Unit]
-Description=UDP Custom Optimization (Low Latency)
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c '
-IFACE=\$(ip -o -4 route show to default | awk "{print \$5}");
-tc qdisc del dev \$IFACE root 2>/dev/null || true;
-tc qdisc add dev \$IFACE root fq maxrate 100mbit;
-ip link set dev \$IFACE txqueuelen 4000;
-ip link set dev \$IFACE mtu 1400;
-iptables -t mangle -F;
-ip6tables -t mangle -F;
-'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable udp-custom-optimize.service
-
-echo "✅ تم تطبيق التحسينات الجديدة بنجاح!"
-echo "🔁 يُنصح بإعادة التشغيل الآن لتفعيل كل التعديلات: sudo reboot"
+# نصيحة
+echo ""
+echo "🚀 كل شيء جاهز! من الأفضل أن تعيد تشغيل السيرفر لضمان تطبيق كل شيء بكفاءة."
+echo "لإعادة تشغيل السيرفر الآن اكتب: reboot"
