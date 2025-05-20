@@ -1,85 +1,81 @@
 #!/bin/bash
-set -e
+echo "🚀 تعزيز إعدادات الشبكة لتحقيق سرعة قصوى في التحميل والرفع عبر UDP! ⚡"
 
-IFACE=$(ip -o -4 route show to default | awk '{print $5}')
-MODPROBE="/etc/modprobe.d/tuning.conf"
-GRUB="/etc/default/grub"
-
-# إعدادات أساسية أكثر استقرارًا
+# تحسين إدارة الحزم عبر الشبكة
 cat > /etc/sysctl.conf <<EOF
-# إعدادات الذاكرة الأساسية
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.core.rmem_default = 1048576
-net.core.wmem_default = 1048576
+net.core.rps_sock_flow_entries = 4194304
+net.core.netdev_max_backlog = 160000000
 
-# تحسينات TCP
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
+# تعزيز تدفق البيانات عبر UDP (تحميل ورفع بسرعة خارقة)
+net.core.optmem_max = 17179869184
+net.ipv4.udp_mem = 4194304 33554432 68719476736
+net.ipv4.udp_rmem_min = 4194304
+net.ipv4.udp_wmem_min = 4194304
+net.ipv4.udp_rmem_max = 1073741824
+net.ipv4.udp_wmem_max = 2147483648
+
+# تحسين إدارة حركة المرور عبر الشبكة
+net.core.default_qdisc = fq_codel  # تحسين الثبات عبر خوارزمية fq_codel
 net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_mtu_probing = 2
+net.ipv4.tcp_ecn = 1
+
+#تمكين fq_codel على VPS لتقليل التأخير
+sysctl -w net.core.default_qdisc=fq_codel
+sysctl -w net.core.optmem_max=17179869184
+
+
+# تحسين استجابة الشبكة عبر ضبط TCP/UDP
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_fastopen = 3
-net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_sack = 1
-net.ipv4.tcp_dsack = 1
-net.ipv4.tcp_frto = 2
-
-# إعدادات الشبكة العامة
-net.core.netdev_max_backlog = 3000
-net.core.somaxconn = 4096
-net.ipv4.tcp_max_syn_backlog = 4096
-net.ipv4.tcp_syn_retries = 2
-net.ipv4.tcp_synack_retries = 2
-
-# تحسينات الأمان والأداء
-net.ipv4.tcp_rfc1337 = 1
-net.ipv4.tcp_keepalive_time = 60
-net.ipv4.tcp_keepalive_intvl = 10
-net.ipv4.tcp_keepalive_probes = 6
-net.ipv4.tcp_tw_reuse = 1
-fs.file-max = 2097152
 EOF
 
 sysctl -p
 
-# إعدادات متقدمة للشبكة
-ip link set dev $IFACE txqueuelen 1000
-ethtool -G $IFACE rx 4096 tx 4096 2>/dev/null || true
-ethtool -K $IFACE gro on gso on tso on 2>/dev/null || true
+# ضبط إعدادات بطاقة الشبكة
+echo "🔧 ضبط بطاقة الشبكة لتحقيق أقصى سرعة في التحميل والرفع!"
+IFACE="eth0"
+ethtool -G $IFACE rx 1048576 tx 1048576
+ethtool -C $IFACE adaptive-rx off adaptive-tx off
+ethtool -C $IFACE rx-usecs 0 tx-usecs 0
+ethtool -K $IFACE tx-checksum-ipv4 off tx-checksum-ipv6 off tx-checksum-fcoe off
+ethtool -A $IFACE rx off tx off
+ethtool -s $IFACE speed 25000 duplex full autoneg off  # ضبط سرعة البطاقة إلى 25Gbps إن كانت تدعم ذلك!
+ethtool -K $IFACE xdp on  # تفعيل XDP لتسريع معالجة الحزم داخل بطاقة الشبكة!
 
-# تكوين GRUB لإعدادات CPU
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& mitigations=off processor.max_cstate=1 intel_idle.max_cstate=0 idle=poll/' $GRUB
-update-grub 2>/dev/null || true
+# ضبط MTU للحصول على تدفق ضخم للحزم
+echo "📡 ضبط MTU إلى 9000 لزيادة حجم الإطارات الجامبو!"
+ifconfig $IFACE mtu 9000
 
-# إعدادات مودبروب
-cat > $MODPROBE <<EOF
-options ixgbe IntMode=1 RSS=1
-options i40e debug=1
-options mlx4_core log_num_mgm_entry_size=-1
+# تعزيز سرعة الرفع عبر UDP
+echo "🔥 رفع سرعة الرفع عبر UDP إلى الحد الأقصى!"
+ethtool -G $IFACE tx 2097152  # رفع المخزن المؤقت للإرسال
+
+# ضبط استقرار اتصال الشبكة
+echo "🔥 تحسين استقرار الشبكة عبر ضبط CPU Affinity!"
+sysctl -w net.core.somaxconn=65535
+sysctl -w net.core.netdev_max_backlog=500000
+
+# تحسين استجابة المعالج لمعالجة الحزم
+sysctl -w kernel.numa_balancing=1
+sysctl -w kernel.numa_balancing_scan_delay_ms=500
+
+# ضبط اتصال الـ MTU بشكل ديناميكي
+sysctl -w net.ipv4.route_min_pmtu=1000
+sysctl -w net.ipv4.tcp_mtu_probing=1
+
+#تمكين TCP_FASTOPEN لتسريع الاتصال
+sysctl -w net.ipv4.tcp_fastopen=3
+
+# ضبط حدود الملفات المفتوحة
+ulimit -n 536870912
+
+# تعديل الملفات الدائمة
+cat >> /etc/security/limits.conf <<EOF
+* soft nofile 536870912
+* hard nofile 536870912
 EOF
 
-# تحسينات IRQ
-if systemctl is-active --quiet irqbalance; then
-    systemctl stop irqbalance
-    systemctl disable irqbalance
-fi
-
-for irq in /proc/irq/*; do
-    echo 1 > "$irq/smp_affinity" 2>/dev/null || true
-done
-
-# إعدادات الطاقة
-for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    echo "performance" > $cpu 2>/dev/null || true
-done
-
-# إعدادات نظام الملفات
-cat >> /etc/fstab <<EOF
-noatime,nodiratime,commit=60,barrier=0,data=writeback,discard
-EOF
-
-# إعادة تعيين إعدادات الشبكة
-tc qdisc del dev $IFACE root 2>/dev/null || true
-tc qdisc add dev $IFACE root fq_codel
-
-echo "✅ تم التثبيت بنجاح مع تحسين الاستقرار!"
-echo "يرجى إعادة التشغيل لتفعيل جميع الإعدادات: reboot"
+echo "✅ الشبكة الآن جاهزة لنقل البيانات بأقصى سرعة تحميل وأقصى سرعة رفع عبر UDP!"
+echo "📢 يُفضل إعادة تشغيل السيرفر لضمان أفضل تجربة."
