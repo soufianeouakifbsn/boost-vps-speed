@@ -1,160 +1,138 @@
 #!/bin/bash
 set -e
-echo "🚀 بدء تطبيق تحسينات متقدمة لزيادة سرعة اتصال UDP Custom مع HTTP Custom App"
 
-# ======== تحديد واجهة الشبكة الافتراضية ========
-IFACE=$(ip -o -4 route show to default | awk '{print $5}')
-echo "🔍 تم اكتشاف واجهة الشبكة: $IFACE"
+echo "🚀 بدء تطبيق تحسينات إنوي المتطورة لـ UDP/HTTP Custom (الإصدار الذهبي)"
 
-# ======== تحسينات نواة النظام المتقدمة لزيادة السرعة ========
-cat > /etc/sysctl.conf <<EOF
-# ----- تحسينات أساسية لـ UDP مع قيم محسنة لزيادة السرعة -----
-net.core.rmem_max = 33554432
-net.core.wmem_max = 33554432
-net.core.rmem_default = 8388608
-net.core.wmem_default = 8388608
-net.ipv4.udp_rmem_min = 16384
-net.ipv4.udp_wmem_min = 16384
+# ======== التحقق من الصلاحيات والبيئة ========
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ يجب تشغيل السكربت بصلاحيات root!" 
+   exit 1
+fi
 
-# ----- تحسين أداء UDP -----
-net.ipv4.udp_mem = 65536 131072 33554432
-net.ipv4.udp_so_reuseport = 1
+IFACE=$(ip -o -4 route show to default | awk '{print $5}' | uniq)
+if [[ -z "$IFACE" ]]; then
+    echo "❌ فشل في تحديد الواجهة الشبكية!"
+    exit 1
+fi
+echo "🔍 الواجهة المحددة: $IFACE | النوع: $(ethtool -i $IFACE | grep driver)"
 
-# ----- تقليل فقدان الحزم والخنق -----
-net.core.netdev_max_backlog = 200000
-net.core.somaxconn = 8192
-net.core.optmem_max = 25165824
+# ======== التحسينات الزمنية الدقيقة ========
+timedatectl set-timezone Africa/Casablanca
+sed -i '/^pool /d' /etc/chrony/chrony.conf
+echo "server time.cloudflare.com iburst" >> /etc/chrony/chrony.conf
+echo "server ntp.inwi.ma iburst" >> /etc/chrony/chrony.conf
+systemctl restart chrony
+echo "🕒 مزامنة الوقت مع خوادم إنوي و Cloudflare"
 
-# ----- استقرار الاتصالات والتتبع -----
-net.netfilter.nf_conntrack_max = 786432
-net.netfilter.nf_conntrack_buckets = 196608
-net.netfilter.nf_conntrack_udp_timeout = 90
-net.netfilter.nf_conntrack_udp_timeout_stream = 240
+# ======== تحسينات النواة الهجينة ========
+cat > /etc/sysctl.d/99-inwi-udp.conf <<EOF
+# ───── تحسينات UDP المتطورة ─────
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.core.rmem_default = 16777216
+net.core.wmem_default = 16777216
+net.ipv4.udp_rmem_min = 131072
+net.ipv4.udp_wmem_min = 131072
+net.ipv4.udp_mem = 66560 89152 134217728
 
-# ----- تحسينات TCP محسنة -----
-net.ipv4.tcp_congestion_control = hybla
+# ───── تحسينات TCP الهجينة ─────
+net.ipv4.tcp_congestion_control = bbr2
 net.ipv4.tcp_slow_start_after_idle = 0
-net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_sack = 1
-net.ipv4.tcp_window_scaling = 1
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_fastopen = 3
-net.ipv4.tcp_keepalive_time = 600
+net.ipv4.tcp_mtu_probing = 2
+net.ipv4.tcp_rfc1337 = 1
+net.ipv4.tcp_keepalive_time = 300
 net.ipv4.tcp_keepalive_intvl = 60
 net.ipv4.tcp_keepalive_probes = 5
-net.core.default_qdisc = fq
 
-# ----- تحسينات IPv4 محددة -----
-net.ipv4.conf.all.rp_filter = 0
-net.ipv4.conf.default.rp_filter = 0
-net.ipv4.ip_no_pmtu_disc = 1
-net.ipv4.route.flush = 1
-
-# ----- تحسينات عامة للنظام -----
-fs.file-max = 2097152
-vm.swappiness = 5
-vm.vfs_cache_pressure = 30
+# ───── تحسينات شبكات الجوال ─────
+net.core.netdev_max_backlog = 300000
+net.core.somaxconn = 32768
+net.core.optmem_max = 4194304
+net.ipv4.conf.all.rp_filter = 2
 net.ipv4.ip_forward = 1
 net.ipv4.ip_local_port_range = 1024 65535
 
-# ----- تحسين الذاكرة وأداء النظام -----
-vm.overcommit_memory = 1
-vm.dirty_ratio = 5
+# ───── إدارة الذاكرة المتقدمة ─────
+vm.swappiness = 1
+vm.vfs_cache_pressure = 50
+vm.dirty_ratio = 3
 vm.dirty_background_ratio = 2
 EOF
 
-sysctl -p
+sysctl -p /etc/sysctl.d/99-inwi-udp.conf
 
-# ======== إعدادات حدود الملفات المفتوحة ========
-cat > /etc/security/limits.conf <<EOF
-* soft nofile 786432
-* hard nofile 786432
-root soft nofile 786432
-root hard nofile 786432
-EOF
+# ======== تحسينات البطاقة الشبكية المتقدمة ========
+ethtool_optimize() {
+    ethtool -C $IFACE rx-usecs 0 tx-usecs 0 2>/dev/null || true
+    ethtool -G $IFACE rx 4096 tx 4096 2>/dev/null || true
+    ethtool -K $IFACE \
+        tso on gso on gro on \
+        lro off rx off tx off \
+        tx-checksum-ip-generic on 2>/dev/null || true
+    ip link set dev $IFACE txqueuelen 4000
+    echo "🔧 تحسينات البطاقة المطبقة:"
+    ethtool -k $IFACE | grep -E 'tcp-segmentation-offload:|generic-segmentation-offload:'
+}
 
-ulimit -n 786432
+ethtool_optimize
 
-# ======== تقليل وقت انتظار الاتصالات لتعزيز سرعة الاستجابة ========
-cat >> /etc/sysctl.conf <<EOF
-# تقليل وقت انتظار الاتصالات
-net.ipv4.tcp_fin_timeout = 15
-net.ipv4.tcp_max_tw_buckets = 2000000
-EOF
-
-sysctl -p
-
-# ======== تحسين جدولة حزم الشبكة لإنوي ========
+# ======== نظام QoS الهجين (CAKE + HTB) ========
 tc qdisc del dev $IFACE root 2>/dev/null || true
 
-# استخدام fq_codel مع قيم محسنة لزيادة السرعة
-tc qdisc add dev $IFACE root fq_codel quantum 1500 target 3ms interval 50ms noecn flows 4096
+# الطبقة العلوية باستخدام CAKE
+tc qdisc add dev $IFACE root cake bandwidth 900mbit besteffort \
+    dual-dsthost nat nowash no-ack-filter \
+    rtt 150ms memory 32M
 
-# ضبط طابور الإرسال بقيمة محسنة
-ip link set dev $IFACE txqueuelen 8000
+# الطبقة التحتية باستخدام HTB للتحكم الدقيق
+tc qdisc add dev $IFACE parent 1: handle 2: htb default 30
+tc class add dev $IFACE parent 2: classid 2:1 htb rate 900mbit ceil 900mbit
+tc class add dev $IFACE parent 2:1 classid 2:10 htb rate 750mbit ceil 900mbit prio 1  # UDP Priority
+tc class add dev $IFACE parent 2:1 classid 2:20 htb rate 100mbit ceil 300mbit prio 2  # TCP
+tc class add dev $IFACE parent 2:1 classid 2:30 htb rate 50mbit ceil 200mbit prio 3   # Other
 
-# ======== ضبط عدد العمليات المتزامنة للنظام بشكل محسن ========
-echo 65536 > /proc/sys/kernel/threads-max
-echo 65536 > /proc/sys/vm/max_map_count
-echo 65536 > /proc/sys/kernel/pid_max
+# تصنيف الحزم باستخدام علامات DSCP
+tc filter add dev $IFACE parent 2: protocol ip prio 1 u32 \
+    match ip protocol 0x11 0xff \
+    match ip dport 5000 0xff00 \
+    flowid 2:10
 
-# ======== إزالة قواعد iptables تقييدية ========
+# ======== تحسينات iptables الذكية ========
 iptables -t mangle -F
 ip6tables -t mangle -F
 
-# ======== إنشاء قواعد للحصول على الأولوية لحركة UDP ========
-iptables -t mangle -N UDPMARKING
-iptables -t mangle -A UDPMARKING -j MARK --set-mark 10
-iptables -t mangle -A OUTPUT -p udp -j UDPMARKING
+# وضع علامات DSCP لحركة UDP Custom
+iptables -t mangle -A POSTROUTING -p udp -m multiport --dports 5000:65000 -j DSCP --set-dscp-class EF
+iptables -t mangle -A POSTROUTING -p udp -m multiport --sports 5000:65000 -j DSCP --set-dscp-class EF
 
-echo "✅ تم إنشاء قواعد للحصول على الأولوية لحركة UDP"
+# تحسينات MTU الديناميكية
+iptables -t mangle -A POSTROUTING -o $IFACE -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 
-# ======== تحسينات خاصة بشبكات إنوي ========
-# استخدام جدولة متقدمة مخصصة لشبكات إنوي
-tc qdisc del dev $IFACE root 2>/dev/null || true
+# منع اكتشاف خنق الناقل
+iptables -t mangle -A POSTROUTING -j TTL --ttl-set 70
+ip6tables -t mangle -A POSTROUTING -j HL --hl-set 70
 
-# إعداد HTB لتحسين توزيع عرض النطاق الترددي
-tc qdisc add dev $IFACE root handle 1: htb default 10
-tc class add dev $IFACE parent 1: classid 1:1 htb rate 1000mbit ceil 1000mbit
-tc class add dev $IFACE parent 1:1 classid 1:10 htb rate 800mbit ceil 1000mbit prio 0
-tc class add dev $IFACE parent 1:1 classid 1:20 htb rate 150mbit ceil 500mbit prio 1
+# ======== نظام المراقبة الذكية ========
+apt install -y \
+    darkstat \
+    nethogs \
+    tcptrack \
+    smokeping
 
-# توجيه الحزم بناءً على علامات المؤشر
-tc filter add dev $IFACE parent 1: protocol ip prio 1 handle 10 fw flowid 1:10
-
-# إضافة sfq لكل فئة لتحسين العدالة
-tc qdisc add dev $IFACE parent 1:10 handle 10: sfq perturb 10
-tc qdisc add dev $IFACE parent 1:20 handle 20: sfq perturb 10
-
-echo "✅ تم تطبيق تحسينات متقدمة خاصة بشبكات إنوي للحصول على السرعة الكاملة"
-
-# ======== تنشيط تقنية MTU التعقب ========
-# تحديد أفضل قيمة MTU للشبكة
-ip link set dev $IFACE mtu 1500
-
-# ======== إنشاء خدمة systemd لتطبيق تحسينات الشبكة تلقائيًا عند الإقلاع ========
-cat > /etc/systemd/system/udp-custom-optimize.service <<EOF
+# ======== خدمة النظام الديناميكية ========
+cat > /etc/systemd/system/inwi-ultimate.service <<EOF
 [Unit]
-Description=UDP Custom Advanced Optimization Service
+Description=INWI Ultimate UDP Optimizer
 After=network.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'IFACE=\$(ip -o -4 route show to default | awk "{print \$5}"); \
-tc qdisc replace dev \$IFACE root fq_codel quantum 1500 target 3ms interval 50ms noecn flows 4096; \
-ip link set dev \$IFACE txqueuelen 8000; \
-tc qdisc replace dev \$IFACE root handle 1: htb default 10; \
-tc class replace dev \$IFACE parent 1: classid 1:1 htb rate 1000mbit ceil 1000mbit; \
-tc class replace dev \$IFACE parent 1:1 classid 1:10 htb rate 800mbit ceil 1000mbit prio 0; \
-tc class replace dev \$IFACE parent 1:1 classid 1:20 htb rate 150mbit ceil 500mbit prio 1; \
-tc filter replace dev \$IFACE parent 1: protocol ip prio 1 handle 10 fw flowid 1:10; \
-tc qdisc replace dev \$IFACE parent 1:10 handle 10: sfq perturb 10; \
-tc qdisc replace dev \$IFACE parent 1:20 handle 20: sfq perturb 10; \
-iptables -t mangle -N UDPMARKING 2>/dev/null || true; \
-iptables -t mangle -F UDPMARKING; \
-iptables -t mangle -A UDPMARKING -j MARK --set-mark 10; \
-iptables -t mangle -D OUTPUT -p udp -j UDPMARKING 2>/dev/null || true; \
-iptables -t mangle -A OUTPUT -p udp -j UDPMARKING;'
+ExecStartPre=/usr/bin/sleep 7
+ExecStart=/sbin/sysctl -p /etc/sysctl.d/99-inwi-udp.conf
+ExecStart=/usr/sbin/tc qdisc replace dev $IFACE root cake bandwidth 900mbit besteffort dual-dsthost
+ExecStart=/usr/bin/ethtool -K $IFACE gro on gso on tso on
+ExecReload=/usr/sbin/tc qdisc replace dev $IFACE root cake bandwidth 900mbit
 RemainAfterExit=yes
 
 [Install]
@@ -162,8 +140,12 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable udp-custom-optimize.service
+systemctl enable inwi-ultimate.service
 
-echo "🔥 تم تطبيق جميع التحسينات المتقدمة بنجاح!"
-echo "⚠️ هذه التحسينات مصممة للحصول على أقصى سرعة ممكنة في شبكات إنوي"
-echo "⚡ يُفضل إعادة تشغيل السيرفر الآن لتفعيل كافة التغييرات: sudo reboot"
+echo "✅ تم التطبيق بنجاح! التحسينات الرئيسية:"
+echo "✔️ نظام QoS هجين (CAKE + HTB) مع أولوية مطلقة لـ UDP"
+echo "✔️ خوارزمية BBRv2 مع MTU Probing"
+echo "✔️ تحسينات DSCP متقدمة لعلامات جودة الخدمة"
+echo "✔️ مراقبة شبكة متقدمة مع Darkstat و Smokeping"
+echo "✔️ إعدادات زمنية دقيقة لشبكات إنوي"
+echo "⚡ التشغيل: systemctl start inwi-ultimate.service"
