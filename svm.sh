@@ -18,7 +18,7 @@ read -p "Enter Ngrok Domain: " domain
 
 # Configure and start Ngrok
 ngrok config add-authtoken "$token"
-ngrok http --url="$domain" 80 > /dev/null &
+ngrok http --url="$domain" 3123 > /dev/null &
 
 # Wait for Ngrok to initialize
 echo "🔴🔴🔴 Waiting for Ngrok to initialize..."
