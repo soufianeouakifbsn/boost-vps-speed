@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# تثبيت Docker إذا لم يكن مثبتًا
+# التأكد من تثبيت Docker
 echo "🚀 التأكد من أن Docker مثبت..."
 if ! command -v docker &> /dev/null; then
   echo "🛠️  تثبيت Docker..."
@@ -15,10 +15,15 @@ else
   echo "✅ Docker مثبت مسبقًا."
 fi
 
-# تشغيل الحاوية الخاصة بمولد الفيديوهات
+# التحقق من تشغيل Docker
+if ! sudo systemctl is-active --quiet docker; then
+  echo "🔄 بدء خدمة Docker..."
+  sudo systemctl start docker
+fi
+
+# تشغيل حاوية short-video-maker
 echo "🎬 تشغيل حاوية short-video-maker..."
 
-# أدخل مفتاح PEXELS الخاص بك هنا (بدله إذا كان مختلفًا)
 PEXELS_API_KEY="FDrZIasw3qXF6eOCc0dafpZ9cJnN2FfAWi3xEn1mcHy9lqmLqpuIebwC"
 
 sudo docker run -d --name short-video-maker \
@@ -28,4 +33,4 @@ sudo docker run -d --name short-video-maker \
   gyoridavid/short-video-maker:latest-tiny
 
 echo "✅ تم تشغيل short-video-maker بنجاح!"
-echo "🌐 يمكنك الوصول إليه عبر: http://<IP-ADDRESS>:3123"
+echo "🌐 افتح المتصفح وادخل إلى: http://$(hostname -I | awk '{print $1}'):3123"
