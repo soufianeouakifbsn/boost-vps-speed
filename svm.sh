@@ -1,11 +1,28 @@
 #!/bin/bash
 
-# ⚙️ إيقاف أي نسخة سابقة من short-video-maker
-echo "🛑 إيقاف أي حاوية سابقة من short-video-maker..."
-sudo docker stop short-video-maker &> /dev/null
-sudo docker rm short-video-maker &> /dev/null
+echo "🧹 إزالة كل ما يتعلق بـ short-video-maker..."
 
-# 🐳 التأكد من أن Docker مثبت
+# 1. حذف الحاوية إذا كانت موجودة
+if [ "$(sudo docker ps -a -q -f name=short-video-maker)" ]; then
+  echo "🛑 إيقاف وحذف الحاوية..."
+  sudo docker stop short-video-maker
+  sudo docker rm short-video-maker
+fi
+
+# 2. حذف الصورة (image) من النظام
+if sudo docker images | grep -q "gyoridavid/short-video-maker"; then
+  echo "🗑️ حذف صورة short-video-maker..."
+  sudo docker rmi gyoridavid/short-video-maker:latest-tiny
+fi
+
+# 3. حذف أي ملفات إعداد أو مجلدات قديمة (اختياري إذا تم حفظها)
+# sudo rm -rf /path/to/old/config-or-volume-data (في حال كنت تستخدم حجم دائم - volume)
+
+echo "✅ تم الحذف بالكامل!"
+
+echo "🚀 بدء التثبيت من جديد..."
+
+# التأكد من Docker
 if ! command -v docker &> /dev/null; then
   echo "🛠️ تثبيت Docker..."
   sudo apt update
@@ -18,36 +35,32 @@ else
   echo "✅ Docker مثبت مسبقًا."
 fi
 
-# 🧰 تثبيت ngrok و jq
+# تثبيت ngrok و jq
 echo "📦 تثبيت ngrok و jq..."
 wget -O ngrok.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
 sudo tar -xvzf ngrok.tgz -C /usr/local/bin
 sudo apt install -y jq
 
-# 🔐 إعداد بيانات ngrok و PEXELS
-NGROK_AUTH_TOKEN="ادخل هنا التوكن الخاص بك"
+# إعداد البيانات
+NGROK_AUTH_TOKEN="ضع_توكن_ngrok_هنا"
 NGROK_DOMAIN="talented-fleet-monkfish.ngrok-free.app"
 PEXELS_API_KEY="FDrZIasw3qXF6eOCc0dafpZ9cJnN2FfAWi3xEn1mcHy9lqmLqpuIebwC"
 
-# 🔧 تهيئة ngrok
+# إعداد ngrok
 ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
 ngrok http --domain="$NGROK_DOMAIN" 3123 > /dev/null &
 
-# 🕐 الانتظار حتى يبدأ ngrok
-echo "🕐 الانتظار حتى يبدأ ngrok..."
+# انتظار ngrok
 sleep 8
+EXTERNAL_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
 
-# 🌍 الحصول على الرابط من ngrok
-export EXTERNAL_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-echo "🌐 رابط ngrok هو: $EXTERNAL_URL"
-
-# 🚀 تشغيل الحاوية
-echo "🚀 تشغيل حاوية short-video-maker..."
+# تشغيل الحاوية
+echo "🎬 تشغيل short-video-maker..."
 sudo docker run -d --name short-video-maker \
   --restart unless-stopped \
   -p 3123:3123 \
   -e PEXELS_API_KEY=$PEXELS_API_KEY \
   gyoridavid/short-video-maker:latest-tiny
 
-echo "✅ تم تشغيل short-video-maker بنجاح!"
-echo "🌐 يمكنك الوصول إليه من خلال: $EXTERNAL_URL"
+echo "✅ تم تثبيت وتشغيل short-video-maker من الصفر!"
+echo "🌍 الوصول عبر: $EXTERNAL_URL"
